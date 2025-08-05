@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { IconEdit, IconEye, IconSave } from "@tabler/icons-react"
+import { IconEdit, IconEye, IconDownload } from "@tabler/icons-react"
 
 export default function SiteEditorPage() {
   const [siteContent, setSiteContent] = useState({
@@ -67,7 +67,7 @@ export default function SiteEditorPage() {
                       className="bg-primary text-background hover:bg-primary/90"
                       onClick={handleSave}
                     >
-                      <IconSave className="h-4 w-4 mr-2" />
+                      <IconDownload className="h-4 w-4 mr-2" />
                       Save Changes
                     </Button>
                   </div>
