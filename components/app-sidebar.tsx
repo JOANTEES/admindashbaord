@@ -9,6 +9,8 @@ import {
   IconSettings,
   IconHelp,
   IconSearch,
+  IconUsers,
+  IconCreditCard,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -23,6 +25,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import Image from "next/image"
 
 const data = {
   user: {
@@ -45,8 +48,18 @@ const data = {
       title: "Bookings",
       url: "/bookings",
       icon: IconCalendar,
-        },
-        {
+    },
+    {
+      title: "Users",
+      url: "/users",
+      icon: IconUsers,
+    },
+    {
+      title: "Payments",
+      url: "/payments",
+      icon: IconCreditCard,
+    },
+    {
       title: "Site Editor",
       url: "/site-editor",
       icon: IconEdit,
@@ -75,6 +88,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
+        <div className="flex h-(--header-height) shrink-0 items-center gap-2 border-b px-4 lg:px-6">
+          <div className="flex items-center gap-2">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={24}
+              height={24}
+              className="object-contain"
+            />
+            <span className="text-base font-semibold">Admin Dashboard</span>
+          </div>
+        </div>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
