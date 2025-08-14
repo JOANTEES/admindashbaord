@@ -27,7 +27,7 @@ export function MediaUpload({ onImageSelect, currentImageUrl }: MediaUploadProps
     {
       id: "1",
       name: "tshirt-white.jpg",
-      url: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=300&h=300&fit=crop",
+      url: "",
       type: "image/jpeg",
       size: 245760,
       uploadedAt: "2024-01-15"
@@ -35,7 +35,7 @@ export function MediaUpload({ onImageSelect, currentImageUrl }: MediaUploadProps
     {
       id: "2",
       name: "jeans-blue.jpg",
-      url: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=300&h=300&fit=crop",
+      url: "",
       type: "image/jpeg",
       size: 312000,
       uploadedAt: "2024-01-10"
@@ -43,7 +43,7 @@ export function MediaUpload({ onImageSelect, currentImageUrl }: MediaUploadProps
     {
       id: "3",
       name: "hoodie-gray.jpg",
-      url: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=300&h=300&fit=crop",
+      url: "",
       type: "image/jpeg",
       size: 198000,
       uploadedAt: "2024-01-20"

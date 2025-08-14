@@ -20,7 +20,7 @@ export default function SiteEditorPage() {
   const [siteContent, setSiteContent] = useState({
     headline: "Welcome to Our Fashion Store",
     subheadline: "Discover the latest trends in fashion and style. Shop our curated collection of clothing and accessories.",
-    bannerImageUrl: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=400&fit=crop"
+    bannerImageUrl: ""
   })
 
   const [previewMode, setPreviewMode] = useState(false)
