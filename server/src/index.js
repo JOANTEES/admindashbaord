@@ -9,6 +9,7 @@ const PORT = process.env.PORT || 5000;
 
 // Import routes
 const authRoutes = require("./routes/auth");
+const productRoutes = require("./routes/products");
 
 // Database connection
 const pool = new Pool({
@@ -36,6 +37,7 @@ app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/products", productRoutes);
 
 // Test route
 app.get("/", (req, res) => {
@@ -84,6 +86,8 @@ app.listen(PORT, () => {
   console.log(`   POST /api/auth/register - User registration`);
   console.log(`   POST /api/auth/login - User login`);
   console.log(`   GET /api/auth/profile - Get user profile`);
+  console.log(`🛍️  Product endpoints:`);
+  console.log(`   GET /api/products - List all products`);
 });
 
 module.exports = app;
