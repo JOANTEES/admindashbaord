@@ -7,6 +7,9 @@ require("dotenv").config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Import routes
+const authRoutes = require("./routes/auth");
+
 // Database connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -30,6 +33,9 @@ app.use(helmet()); // Security headers
 app.use(cors()); // Enable CORS for all routes
 app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
+
+// Routes
+app.use("/api/auth", authRoutes);
 
 // Test route
 app.get("/", (req, res) => {
@@ -74,6 +80,10 @@ app.listen(PORT, () => {
   console.log(`📱 Health check: http://localhost:${PORT}/health`);
   console.log(`🏠 Home: http://localhost:${PORT}/`);
   console.log(`🗄️  Database test: http://localhost:${PORT}/db-test`);
+  console.log(`🔐 Auth endpoints:`);
+  console.log(`   POST /api/auth/register - User registration`);
+  console.log(`   POST /api/auth/login - User login`);
+  console.log(`   GET /api/auth/profile - Get user profile`);
 });
 
 module.exports = app;
