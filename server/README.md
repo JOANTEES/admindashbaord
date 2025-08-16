@@ -51,7 +51,8 @@ server/
 ├── src/
 │   ├── index.js              # Main server file
 │   ├── routes/
-│   │   └── auth.js           # Authentication routes
+│   │   ├── auth.js           # Authentication routes
+│   │   └── products.js       # Product management routes
 │   ├── middleware/
 │   │   └── auth.js           # Authentication middleware
 │   └── database/
@@ -155,9 +156,50 @@ http://localhost:5000
   }
   ```
 
+### Product Endpoints
+
+#### 4. Get All Products
+
+- **URL:** `GET /api/products`
+- **Description:** Retrieve all active products (public route - no authentication required)
+- **Headers:** None required
+- **Response (200):**
+  ```json
+  {
+    "message": "Products retrieved successfully",
+    "count": 3,
+    "products": [
+      {
+        "id": 1,
+        "name": "Classic White T-Shirt",
+        "description": "Premium cotton classic fit t-shirt",
+        "price": "29.99",
+        "category": "T-Shirts",
+        "size": "M",
+        "color": "White",
+        "stock_quantity": 50,
+        "image_url": null,
+        "created_at": "2024-01-01T00:00:00.000Z"
+      },
+      {
+        "id": 2,
+        "name": "Denim Jeans",
+        "description": "Comfortable straight-leg denim jeans",
+        "price": "79.99",
+        "category": "Jeans",
+        "size": "32",
+        "color": "Blue",
+        "stock_quantity": 30,
+        "image_url": null,
+        "created_at": "2024-01-01T00:00:00.000Z"
+      }
+    ]
+  }
+  ```
+
 ### Utility Endpoints
 
-#### 4. API Status
+#### 5. API Status
 
 - **URL:** `GET /`
 - **Description:** Check if API is running
@@ -169,7 +211,7 @@ http://localhost:5000
   }
   ```
 
-#### 5. Health Check
+#### 6. Health Check
 
 - **URL:** `GET /health`
 - **Description:** Check API health status
@@ -182,7 +224,7 @@ http://localhost:5000
   }
   ```
 
-#### 6. Database Test
+#### 7. Database Test
 
 - **URL:** `GET /db-test`
 - **Description:** Test database connection
@@ -224,22 +266,57 @@ Routes that require authentication will return:
 
 ## 📊 Database Schema
 
-The database includes these tables:
+### Products Table Structure
 
-- **users** - User accounts and authentication
-- **products** - Clothing items with inventory
-- **orders** - Customer orders
-- **order_items** - Individual items in orders
+The products table contains the following fields:
 
-Sample data is automatically added during initialization.
+```sql
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    price DECIMAL(10,2) NOT NULL CHECK (price > 0),
+    category VARCHAR(100) NOT NULL,
+    size VARCHAR(20),
+    color VARCHAR(50),
+    stock_quantity INTEGER DEFAULT 0 CHECK (stock_quantity >= 0),
+    image_url VARCHAR(500),
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Sample Product Data
+
+The database comes pre-loaded with sample products:
+
+- **Classic White T-Shirt** - $29.99 (T-Shirts category)
+- **Denim Jeans** - $79.99 (Jeans category)
+- **Hooded Sweatshirt** - $59.99 (Hoodies category)
+
+### Data Types for Frontend
+
+- **id**: Integer (unique identifier)
+- **name**: String (product name)
+- **description**: String (product description)
+- **price**: Decimal (price in dollars, e.g., "29.99")
+- **category**: String (product category)
+- **size**: String (product size, can be null)
+- **color**: String (product color, can be null)
+- **stock_quantity**: Integer (available stock)
+- **image_url**: String (product image URL, can be null)
+- **created_at**: ISO Date String (when product was created)
 
 ## 🚧 Next Steps
 
 1. ✅ Set up PostgreSQL database (Neon)
 2. ✅ Create database connection and models
 3. ✅ Implement user authentication
-4. 🔄 Create product and order APIs
-5. 🔄 Add validation and error handling
+4. ✅ Create basic product listing API
+5. 🔄 Add product management (Create, Update, Delete)
+6. 🔄 Implement order system
+7. 🔄 Add validation and error handling
 
 ## 🆘 Troubleshooting
 
