@@ -1,191 +1,211 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { 
-  IconUsers, 
-  IconShoppingCart, 
-  IconUserPlus, 
-  IconCalendar, 
-  IconShirt,
-  IconPlus,
-  IconTrash,
-  IconEdit,
-  IconShield,
-  IconMail,
-  IconPhone
-} from "@tabler/icons-react"
-import { ProtectedRoute } from "@/components/protected-route"
+import { IconUsers, IconShoppingCart, IconCalendar, IconPackage, IconUserCheck, IconPlus, IconTrash, IconToggleRight, IconToggleLeft, IconLoader } from "@tabler/icons-react"
+import { apiClient, Admin, DashboardStats } from "@/lib/api"
 import { toast } from "sonner"
+import { ProtectedRoute } from "@/components/protected-route"
 
-interface Admin {
-  id: string
-  name: string
-  email: string
-  phone: string
-  role: "super_admin" | "admin" | "moderator"
-  status: "active" | "inactive"
-  createdAt: string
-}
-
-export default function Page() {
-  const [admins, setAdmins] = useState<Admin[]>([
-    {
-      id: "1",
-      name: "John Doe",
-      email: "john@example.com",
-      phone: "+233 20 123 4567",
-      role: "super_admin",
-      status: "active",
-      createdAt: "2024-01-01"
-    },
-    {
-      id: "2",
-      name: "Jane Smith",
-      email: "jane@example.com",
-      phone: "+233 24 987 6543",
-      role: "admin",
-      status: "active",
-      createdAt: "2024-01-15"
-    },
-    {
-      id: "3",
-      name: "Mike Johnson",
-      email: "mike@example.com",
-      phone: "+233 26 555 1234",
-      role: "moderator",
-      status: "inactive",
-      createdAt: "2024-02-01"
-    }
-  ])
-
+export default function DashboardPage() {
+  const [stats, setStats] = useState<DashboardStats>({
+    totalVisitors: 0,
+    totalPurchases: 0,
+    totalUsers: 0,
+    totalBookings: 0,
+    totalClothes: 0,
+    activeAdmins: 0
+  })
+  const [admins, setAdmins] = useState<Admin[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
-    role: "admin" as Admin["role"]
+    role: "admin" as "admin" | "moderator",
+    password: ""
   })
 
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  useEffect(() => {
+    fetchDashboardData()
+  }, [])
 
-  const stats = [
+  const fetchDashboardData = async () => {
+    try {
+      setIsLoading(true)
+      
+      // Fetch dashboard stats
+      const statsResponse = await apiClient.getDashboardStats()
+      if (statsResponse.data && statsResponse.data.stats) {
+        setStats(statsResponse.data.stats)
+      }
+
+      // Fetch admins
+      const adminsResponse = await apiClient.getAdmins()
+      if (adminsResponse.data && adminsResponse.data.admins) {
+        setAdmins(adminsResponse.data.admins)
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error)
+      toast.error('Failed to load dashboard data')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleAddAdmin = async () => {
+    try {
+      const response = await apiClient.addAdmin(formData)
+      if (response.data) {
+        toast.success('Admin added successfully')
+        setIsAddDialogOpen(false)
+        setFormData({ name: "", email: "", phone: "", role: "admin", password: "" })
+        fetchDashboardData() // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error adding admin:', error)
+      toast.error('Failed to add admin')
+    }
+  }
+
+  const handleDeleteAdmin = async (id: string) => {
+    try {
+      const response = await apiClient.deleteAdmin(id)
+      if (response.data) {
+        toast.success('Admin deleted successfully')
+        fetchDashboardData() // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error deleting admin:', error)
+      toast.error('Failed to delete admin')
+    }
+  }
+
+  const handleToggleStatus = async (id: string, currentStatus: 'active' | 'inactive') => {
+    try {
+      const newStatus = currentStatus === 'active' ? 'inactive' : 'active'
+      const response = await apiClient.updateAdminStatus(id, newStatus)
+      if (response.data) {
+        toast.success(`Admin status updated to ${newStatus}`)
+        fetchDashboardData() // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error updating admin status:', error)
+      toast.error('Failed to update admin status')
+    }
+  }
+
+  const getRoleBadge = (role: string) => {
+    switch (role) {
+      case 'super_admin':
+        return <Badge variant="destructive">Super Admin</Badge>
+      case 'admin':
+        return <Badge variant="default">Admin</Badge>
+      case 'moderator':
+        return <Badge variant="secondary">Moderator</Badge>
+      default:
+        return <Badge variant="outline">{role}</Badge>
+    }
+  }
+
+  const getStatusBadge = (status: string) => {
+    return status === 'active' ? (
+      <Badge variant="default" className="bg-green-500">Active</Badge>
+    ) : (
+      <Badge variant="secondary">Inactive</Badge>
+    )
+  }
+
+  const statsData = [
     {
-      title: "Total Site Visitors",
-      value: "2,153",
+      title: "Total Visitors",
+      value: stats.totalVisitors.toLocaleString(),
       icon: IconUsers,
-      description: "Total visitors this month",
+      description: "Total website visitors",
+      trend: "+12% from last month"
     },
     {
-      title: "Purchases",
-      value: "123",
+      title: "Total Purchases",
+      value: stats.totalPurchases.toLocaleString(),
       icon: IconShoppingCart,
-      description: "Total purchases made",
+      description: "Total orders placed",
+      trend: "+8% from last month"
     },
     {
-      title: "User Signups",
-      value: "456",
-      icon: IconUserPlus,
-      description: "New user registrations",
+      title: "Total Users",
+      value: stats.totalUsers.toLocaleString(),
+      icon: IconUserCheck,
+      description: "Registered users",
+      trend: "+15% from last month"
     },
     {
-      title: "Bookings",
-      value: "78",
+      title: "Total Bookings",
+      value: stats.totalBookings.toLocaleString(),
       icon: IconCalendar,
-      description: "Active bookings",
+      description: "Event bookings",
+      trend: "+5% from last month"
     },
     {
-      title: "Clothes Uploaded",
-      value: "34",
-      icon: IconShirt,
-      description: "Items in inventory",
+      title: "Total Clothes",
+      value: stats.totalClothes.toLocaleString(),
+      icon: IconPackage,
+      description: "Products in inventory",
+      trend: "+3% from last month"
     },
     {
       title: "Active Admins",
-      value: admins.filter(admin => admin.status === "active").length.toString(),
-      icon: IconShield,
-      description: "Administrators",
-    },
+      value: stats.activeAdmins.toLocaleString(),
+      icon: IconUsers,
+      description: "Active administrators",
+      trend: "No change"
+    }
   ]
 
-  const handleAddAdmin = (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!formData.name || !formData.email || !formData.phone) {
-      toast.error("Please fill in all required fields")
-      return
-    }
-
-    const newAdmin: Admin = {
-      id: Date.now().toString(),
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      role: formData.role,
-      status: "active",
-      createdAt: new Date().toISOString().split('T')[0]
-    }
-
-    setAdmins([...admins, newAdmin])
-    setFormData({ name: "", email: "", phone: "", role: "admin" })
-    setIsDialogOpen(false)
-    toast.success("Admin added successfully!")
-  }
-
-  const handleDeleteAdmin = (id: string) => {
-    const admin = admins.find(a => a.id === id)
-    if (admin?.role === "super_admin") {
-      toast.error("Cannot delete super admin")
-      return
-    }
-    
-    setAdmins(admins.filter(admin => admin.id !== id))
-    toast.success("Admin removed successfully!")
-  }
-
-  const handleToggleStatus = (id: string) => {
-    const admin = admins.find(a => a.id === id)
-    if (admin?.role === "super_admin") {
-      toast.error("Cannot deactivate super admin")
-      return
-    }
-
-    setAdmins(admins.map(admin => 
-      admin.id === id 
-        ? { ...admin, status: admin.status === "active" ? "inactive" : "active" }
-        : admin
-    ))
-    toast.success(`Admin ${admin?.status === "active" ? "deactivated" : "activated"} successfully!`)
-  }
-
-  const getRoleBadge = (role: Admin["role"]) => {
-    switch (role) {
-      case "super_admin":
-        return <Badge className="bg-red-500">Super Admin</Badge>
-      case "admin":
-        return <Badge className="bg-blue-500">Admin</Badge>
-      case "moderator":
-        return <Badge className="bg-green-500">Moderator</Badge>
-      default:
-        return <Badge variant="secondary">{role}</Badge>
-    }
-  }
-
-  const getStatusBadge = (status: Admin["status"]) => {
-    return status === "active" 
-      ? <Badge className="bg-green-500">Active</Badge>
-      : <Badge variant="secondary">Inactive</Badge>
+  if (isLoading) {
+    return (
+      <ProtectedRoute>
+        <SidebarProvider
+          style={
+            {
+              "--sidebar-width": "calc(var(--spacing) * 72)",
+              "--header-height": "calc(var(--spacing) * 12)",
+            } as React.CSSProperties
+          }
+        >
+          <AppSidebar variant="inset" />
+          <SidebarInset>
+            <SiteHeader />
+            <div className="flex flex-1 flex-col">
+              <div className="@container/main flex flex-1 flex-col gap-2">
+                <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+                  <div className="px-4 lg:px-6">
+                    <div className="flex items-center justify-center h-64">
+                      <div className="flex items-center gap-2">
+                        <IconLoader className="h-6 w-6 animate-spin" />
+                        <span>Loading dashboard...</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </SidebarInset>
+        </SidebarProvider>
+      </ProtectedRoute>
+    )
   }
 
   return (
@@ -205,102 +225,84 @@ export default function Page() {
             <div className="@container/main flex flex-1 flex-col gap-2">
               <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
                 <div className="px-4 lg:px-6">
-                  <h1 className="text-3xl font-bold text-foreground mb-6">Dashboard Overview</h1>
-                  
-                  {/* Stats Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                    {stats.map((stat, index) => (
-                      <Card key={index} className="border-2 hover:border-primary transition-colors">
+                  <div className="flex justify-between items-center mb-6">
+                    <div>
+                      <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+                      <p className="text-muted-foreground">Welcome to your admin dashboard</p>
+                    </div>
+                  </div>
+
+                  {/* Stats Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    {statsData.map((stat, index) => (
+                      <Card key={index}>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                          <CardTitle className="text-sm font-medium text-muted-foreground">
-                            {stat.title}
-                          </CardTitle>
-                          <stat.icon className="h-4 w-4 text-primary" />
+                          <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                          <stat.icon className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                          <div className="text-2xl font-bold text-foreground">{stat.value}</div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {stat.description}
-                          </p>
+                          <div className="text-2xl font-bold">{stat.value}</div>
+                          <p className="text-xs text-muted-foreground">{stat.description}</p>
+                          <p className="text-xs text-green-600 mt-1">{stat.trend}</p>
                         </CardContent>
                       </Card>
                     ))}
                   </div>
 
-                  {/* Welcome Card */}
-                  <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20 mb-8">
-                    <CardContent className="pt-6">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
-                          <IconUsers className="h-6 w-6 text-background" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-semibold text-foreground">
-                            Welcome to Admin Dashboard
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            Manage your clothes, bookings, and site content from one place.
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
                   {/* Admin Management Section */}
                   <Card>
                     <CardHeader>
                       <div className="flex justify-between items-center">
-                        <CardTitle className="flex items-center gap-2">
-                          <IconShield className="h-5 w-5" />
-                          Admin Management
-                        </CardTitle>
-                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                        <div>
+                          <CardTitle>Admin Management</CardTitle>
+                          <CardDescription>Manage your admin users and their permissions</CardDescription>
+                        </div>
+                        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                           <DialogTrigger asChild>
-                            <Button className="flex items-center gap-2">
-                              <IconPlus className="h-4 w-4" />
+                            <Button>
+                              <IconPlus className="h-4 w-4 mr-2" />
                               Add Admin
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="sm:max-w-[500px]">
+                          <DialogContent>
                             <DialogHeader>
                               <DialogTitle>Add New Admin</DialogTitle>
+                              <DialogDescription>
+                                Create a new admin account with specific permissions.
+                              </DialogDescription>
                             </DialogHeader>
-                            <form onSubmit={handleAddAdmin} className="space-y-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="name">Full Name *</Label>
+                            <div className="space-y-4">
+                              <div>
+                                <Label htmlFor="name">Full Name</Label>
                                 <Input
                                   id="name"
                                   value={formData.name}
-                                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                                  required
+                                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                  placeholder="Enter full name"
                                 />
                               </div>
-                              
-                              <div className="space-y-2">
-                                <Label htmlFor="email">Email Address *</Label>
+                              <div>
+                                <Label htmlFor="email">Email</Label>
                                 <Input
                                   id="email"
                                   type="email"
                                   value={formData.email}
-                                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                                  required
+                                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                  placeholder="Enter email address"
                                 />
                               </div>
-                              
-                              <div className="space-y-2">
-                                <Label htmlFor="phone">Phone Number *</Label>
+                              <div>
+                                <Label htmlFor="phone">Phone</Label>
                                 <Input
                                   id="phone"
                                   value={formData.phone}
-                                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                                  placeholder="+233 XX XXX XXXX"
-                                  required
+                                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                  placeholder="Enter phone number"
                                 />
                               </div>
-                              
-                              <div className="space-y-2">
-                                <Label htmlFor="role">Role *</Label>
-                                <Select value={formData.role} onValueChange={(value: Admin["role"]) => setFormData({...formData, role: value})}>
+                              <div>
+                                <Label htmlFor="role">Role</Label>
+                                <Select value={formData.role} onValueChange={(value: "admin" | "moderator") => setFormData({ ...formData, role: value })}>
                                   <SelectTrigger>
                                     <SelectValue />
                                   </SelectTrigger>
@@ -310,73 +312,81 @@ export default function Page() {
                                   </SelectContent>
                                 </Select>
                               </div>
-
-                              <div className="flex gap-2 pt-4">
-                                <Button type="submit" className="flex-1">Add Admin</Button>
-                                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                              <div>
+                                <Label htmlFor="password">Password</Label>
+                                <Input
+                                  id="password"
+                                  type="password"
+                                  value={formData.password}
+                                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                  placeholder="Enter password"
+                                />
                               </div>
-                            </form>
+                            </div>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                                Cancel
+                              </Button>
+                              <Button onClick={handleAddAdmin}>
+                                Add Admin
+                              </Button>
+                            </DialogFooter>
                           </DialogContent>
                         </Dialog>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-4">
-                        {admins.map((admin) => (
-                          <div key={admin.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                            <div className="flex items-center gap-4">
-                              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                                <IconShield className="h-5 w-5 text-primary" />
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2 mb-1">
+                      {admins.length === 0 ? (
+                        <div className="text-center py-8">
+                          <IconUsers className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                          <h3 className="text-lg font-medium mb-2">No admins found</h3>
+                          <p className="text-muted-foreground mb-4">Add your first admin to get started</p>
+                          <Button onClick={() => setIsAddDialogOpen(true)}>
+                            <IconPlus className="h-4 w-4 mr-2" />
+                            Add Admin
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {admins.map((admin) => (
+                            <div key={admin.id} className="flex items-center justify-between p-4 border rounded-lg">
+                              <div className="flex items-center space-x-4">
+                                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+                                  <IconUsers className="h-5 w-5 text-primary-foreground" />
+                                </div>
+                                <div>
                                   <h4 className="font-medium">{admin.name}</h4>
-                                  {getRoleBadge(admin.role)}
-                                  {getStatusBadge(admin.status)}
-                                </div>
-                                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                  <div className="flex items-center gap-1">
-                                    <IconMail className="h-3 w-3" />
-                                    {admin.email}
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <IconPhone className="h-3 w-3" />
-                                    {admin.phone}
-                                  </div>
+                                  <p className="text-sm text-muted-foreground">{admin.email}</p>
+                                  <p className="text-sm text-muted-foreground">{admin.phone}</p>
                                 </div>
                               </div>
+                              <div className="flex items-center space-x-2">
+                                {getRoleBadge(admin.role)}
+                                {getStatusBadge(admin.status)}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleToggleStatus(admin.id, admin.status)}
+                                >
+                                  {admin.status === 'active' ? (
+                                    <IconToggleRight className="h-4 w-4" />
+                                  ) : (
+                                    <IconToggleLeft className="h-4 w-4" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteAdmin(admin.id)}
+                                  className="text-red-500 hover:text-red-700"
+                                >
+                                  <IconTrash className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleToggleStatus(admin.id)}
-                                disabled={admin.role === "super_admin"}
-                              >
-                                <IconEdit className="h-4 w-4 mr-1" />
-                                {admin.status === "active" ? "Deactivate" : "Activate"}
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDeleteAdmin(admin.id)}
-                                disabled={admin.role === "super_admin"}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <IconTrash className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                        
-                        {admins.length === 0 && (
-                          <div className="text-center py-8">
-                            <IconShield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                            <h3 className="text-lg font-semibold text-muted-foreground mb-2">No admins found</h3>
-                            <p className="text-muted-foreground">Add your first admin to get started</p>
-                          </div>
-                        )}
-                      </div>
+                          ))}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </div>

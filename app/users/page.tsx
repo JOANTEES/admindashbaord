@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import {
@@ -15,8 +15,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { IconPlus, IconSearch, IconFilter, IconSortAscending, IconSortDescending, IconUser, IconEdit, IconTrash, IconShield } from "@tabler/icons-react"
+import { IconPlus, IconSearch, IconFilter, IconSortAscending, IconSortDescending, IconUser, IconEdit, IconTrash, IconShield, IconLoader } from "@tabler/icons-react"
 import { ProtectedRoute } from "@/components/protected-route"
+import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
 
 interface User {
@@ -24,7 +25,7 @@ interface User {
   name: string
   email: string
   phone: string
-  role: "admin" | "manager" | "staff" | "viewer"
+  role: "admin" | "manager" | "staff" | "viewer" | "customer"
   status: "active" | "inactive" | "suspended"
   department: string
   lastLogin: string
@@ -33,74 +34,14 @@ interface User {
 }
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: "1",
-      name: "Admin User",
-      email: "admin@joantees.com",
-      phone: "+233 24 123 4567",
-      role: "admin",
-      status: "active",
-      department: "Management",
-      lastLogin: "2024-03-10T10:30:00Z",
-      createdAt: "2024-01-01",
-      permissions: ["all"]
-    },
-    {
-      id: "2",
-      name: "John Manager",
-      email: "john@joantees.com",
-      phone: "+233 20 987 6543",
-      role: "manager",
-      status: "active",
-      department: "Operations",
-      lastLogin: "2024-03-09T14:20:00Z",
-      createdAt: "2024-01-15",
-      permissions: ["bookings", "users", "reports"]
-    },
-    {
-      id: "3",
-      name: "Sarah Staff",
-      email: "sarah@joantees.com",
-      phone: "+233 26 555 1234",
-      role: "staff",
-      status: "active",
-      department: "Customer Service",
-      lastLogin: "2024-03-08T09:15:00Z",
-      createdAt: "2024-02-01",
-      permissions: ["bookings", "clothes"]
-    },
-    {
-      id: "4",
-      name: "Mike Viewer",
-      email: "mike@joantees.com",
-      phone: "+233 54 789 0123",
-      role: "viewer",
-      status: "inactive",
-      department: "Marketing",
-      lastLogin: "2024-03-05T16:45:00Z",
-      createdAt: "2024-02-15",
-      permissions: ["reports"]
-    },
-    {
-      id: "5",
-      name: "David Staff",
-      email: "david@joantees.com",
-      phone: "+233 27 456 7890",
-      role: "staff",
-      status: "suspended",
-      department: "Operations",
-      lastLogin: "2024-03-01T11:30:00Z",
-      createdAt: "2024-03-01",
-      permissions: ["bookings"]
-    }
-  ])
-
+  const [users, setUsers] = useState<User[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [formData, setFormData] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     phone: "",
-    role: "",
+    role: "customer",
     department: "",
     password: "",
     confirmPassword: ""
@@ -113,6 +54,53 @@ export default function UsersPage() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
+
+  // Fetch users from backend
+  const fetchUsers = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      const response = await apiClient.getUsers()
+      
+      if (response.data && response.data.users) {
+        // Transform backend data to match frontend interface
+        interface BackendUser {
+          id: string;
+          first_name: string;
+          last_name: string;
+          email: string;
+          phone?: string;
+          role?: string;
+          status?: string;
+          department?: string;
+          last_login?: string;
+          created_at?: string;
+        }
+        
+        const transformedUsers = (response.data.users as unknown as BackendUser[]).map((user) => ({
+          id: user.id,
+          name: `${user.first_name} ${user.last_name}`,
+          email: user.email,
+          phone: user.phone || '',
+          role: (user.role || 'customer') as "admin" | "manager" | "staff" | "viewer" | "customer",
+          status: (user.status || 'active') as "active" | "inactive" | "suspended",
+          department: user.department || 'General',
+          lastLogin: user.last_login || '',
+          createdAt: user.created_at || new Date().toISOString(),
+          permissions: getRolePermissions(user.role || 'customer')
+        }))
+        setUsers(transformedUsers)
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error)
+      toast.error('Failed to load users')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
 
   // Filter and sort users
   const filteredAndSortedUsers = useMemo(() => {
@@ -161,9 +149,9 @@ export default function UsersPage() {
     return filtered
   }, [users, searchTerm, selectedRole, selectedStatus, sortBy, sortOrder])
 
-  const roles = ["admin", "manager", "staff", "viewer"]
+  const roles = ["admin", "manager", "staff", "viewer", "customer"]
   const statuses = ["active", "inactive", "suspended"]
-  const departments = ["Management", "Operations", "Customer Service", "Marketing", "Finance", "IT", "Sales"]
+  const departments = ["Management", "Operations", "Customer Service", "Marketing", "Finance", "IT", "Sales", "General"]
 
   const getRolePermissions = (role: string) => {
     switch (role) {
@@ -175,15 +163,17 @@ export default function UsersPage() {
         return ["bookings", "clothes"]
       case "viewer":
         return ["reports"]
+      case "customer":
+        return ["profile"]
       default:
         return []
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.name || !formData.email || !formData.role || !formData.password) {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
       toast.error("Please fill in all required fields")
       return
     }
@@ -193,48 +183,52 @@ export default function UsersPage() {
       return
     }
 
-    if (editingUser) {
-      // Update existing user
-      const updatedUser: User = {
-        ...editingUser,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        role: formData.role as User["role"],
-        department: formData.department,
-        permissions: getRolePermissions(formData.role)
+    try {
+      if (editingUser) {
+        // Update existing user
+        const response = await apiClient.updateUser(editingUser.id, {
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          email: formData.email,
+          role: formData.role
+        })
+
+        if (response.data) {
+          toast.success("User updated successfully!")
+          fetchUsers() // Refresh the list
+        }
+      } else {
+        // Create new user using registration endpoint
+        const response = await apiClient.registerUser({
+          email: formData.email,
+          password: formData.password,
+          first_name: formData.firstName,
+          last_name: formData.lastName
+        })
+
+        if (response.data) {
+          toast.success("User created successfully!")
+          fetchUsers() // Refresh the list
+        }
       }
 
-      setUsers(users.map(user => user.id === editingUser.id ? updatedUser : user))
-      toast.success("User updated successfully!")
-    } else {
-      // Create new user
-      const newUser: User = {
-        id: Date.now().toString(),
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        role: formData.role as User["role"],
-        status: "active",
-        department: formData.department,
-        lastLogin: "",
-        createdAt: new Date().toISOString().split('T')[0],
-        permissions: getRolePermissions(formData.role)
-      }
-
-      setUsers([...users, newUser])
-      toast.success("User created successfully!")
+      setFormData({ firstName: "", lastName: "", email: "", phone: "", role: "customer", department: "", password: "", confirmPassword: "" })
+      setEditingUser(null)
+      setIsDialogOpen(false)
+    } catch (error) {
+      console.error('Error saving user:', error)
+      toast.error('Failed to save user')
     }
-
-    setFormData({ name: "", email: "", phone: "", role: "", department: "", password: "", confirmPassword: "" })
-    setEditingUser(null)
-    setIsDialogOpen(false)
   }
 
   const handleEdit = (user: User) => {
+    const [firstName, ...lastNameParts] = user.name.split(' ')
+    const lastName = lastNameParts.join(' ')
+    
     setEditingUser(user)
     setFormData({
-      name: user.name,
+      firstName: firstName || '',
+      lastName: lastName || '',
       email: user.email,
       phone: user.phone,
       role: user.role,
@@ -245,18 +239,30 @@ export default function UsersPage() {
     setIsDialogOpen(true)
   }
 
-  const handleStatusChange = (id: string, newStatus: User["status"]) => {
-    setUsers(users.map(user => 
-      user.id === id 
-        ? { ...user, status: newStatus }
-        : user
-    ))
-    toast.success(`User status updated to ${newStatus}`)
+  const handleStatusChange = async (id: string, newStatus: User["status"]) => {
+    try {
+      const response = await apiClient.updateUserStatus(id, newStatus)
+      if (response.data) {
+        toast.success(`User status updated to ${newStatus}`)
+        fetchUsers() // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error updating user status:', error)
+      toast.error('Failed to update user status')
+    }
   }
 
-  const handleDelete = (id: string) => {
-    setUsers(users.filter(user => user.id !== id))
-    toast.success("User deleted successfully!")
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await apiClient.deleteUser(id)
+      if (response.data) {
+        toast.success("User deleted successfully!")
+        fetchUsers() // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error)
+      toast.error('Failed to delete user')
+    }
   }
 
   const getRoleBadge = (role: string) => {
@@ -269,6 +275,8 @@ export default function UsersPage() {
         return <Badge className="bg-green-500">Staff</Badge>
       case "viewer":
         return <Badge className="bg-gray-500">Viewer</Badge>
+      case "customer":
+        return <Badge className="bg-purple-500">Customer</Badge>
       default:
         return <Badge>{role}</Badge>
     }
@@ -302,6 +310,40 @@ export default function UsersPage() {
   const activeUsers = users.filter(u => u.status === "active").length
   const adminUsers = users.filter(u => u.role === "admin").length
   const staffUsers = users.filter(u => u.role === "staff").length
+
+  if (isLoading) {
+    return (
+      <ProtectedRoute>
+        <SidebarProvider
+          style={
+            {
+              "--sidebar-width": "calc(var(--spacing) * 72)",
+              "--header-height": "calc(var(--spacing) * 12)",
+            } as React.CSSProperties
+          }
+        >
+          <AppSidebar variant="inset" />
+          <SidebarInset>
+            <SiteHeader />
+            <div className="flex flex-1 flex-col">
+              <div className="@container/main flex flex-1 flex-col gap-2">
+                <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+                  <div className="px-4 lg:px-6">
+                    <div className="flex items-center justify-center h-64">
+                      <div className="flex items-center gap-2">
+                        <IconLoader className="h-6 w-6 animate-spin" />
+                        <span>Loading users...</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </SidebarInset>
+        </SidebarProvider>
+      </ProtectedRoute>
+    )
+  }
 
   return (
     <ProtectedRoute>
@@ -340,14 +382,26 @@ export default function UsersPage() {
                         <form onSubmit={handleSubmit} className="space-y-4">
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                              <Label htmlFor="name">Name *</Label>
+                              <Label htmlFor="firstName">First Name *</Label>
                               <Input
-                                id="name"
-                                value={formData.name}
-                                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                id="firstName"
+                                value={formData.firstName}
+                                onChange={(e) => setFormData({...formData, firstName: e.target.value})}
                                 required
                               />
                             </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="lastName">Last Name *</Label>
+                              <Input
+                                id="lastName"
+                                value={formData.lastName}
+                                onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                                required
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor="email">Email *</Label>
                               <Input
@@ -358,9 +412,6 @@ export default function UsersPage() {
                                 required
                               />
                             </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor="phone">Phone</Label>
                               <Input
@@ -369,6 +420,9 @@ export default function UsersPage() {
                                 onChange={(e) => setFormData({...formData, phone: e.target.value})}
                               />
                             </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor="role">Role *</Label>
                               <Select value={formData.role} onValueChange={(value) => setFormData({...formData, role: value})}>
@@ -382,20 +436,19 @@ export default function UsersPage() {
                                 </SelectContent>
                               </Select>
                             </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="department">Department</Label>
-                            <Select value={formData.department} onValueChange={(value) => setFormData({...formData, department: value})}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select department" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {departments.map(dept => (
-                                  <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <div className="space-y-2">
+                              <Label htmlFor="department">Department</Label>
+                              <Select value={formData.department} onValueChange={(value) => setFormData({...formData, department: value})}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select department" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {departments.map(dept => (
+                                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </div>
 
                           {!editingUser && (
@@ -430,7 +483,7 @@ export default function UsersPage() {
                             <Button type="button" variant="outline" onClick={() => {
                               setIsDialogOpen(false)
                               setEditingUser(null)
-                              setFormData({ name: "", email: "", phone: "", role: "", department: "", password: "", confirmPassword: "" })
+                              setFormData({ firstName: "", lastName: "", email: "", phone: "", role: "customer", department: "", password: "", confirmPassword: "" })
                             }}>
                               Cancel
                             </Button>

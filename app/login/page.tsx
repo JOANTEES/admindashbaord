@@ -40,7 +40,7 @@ export default function LoginPage() {
       toast.success("Login successful! Redirecting to dashboard...")
       router.push("/dashboard")
     } else {
-      toast.error("Invalid email or password. Try admin@example.com / admin123")
+      toast.error("Invalid email or password. Please try again.")
     }
     
     setIsLoading(false)
@@ -134,14 +134,6 @@ export default function LoginPage() {
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
-
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            <p>Demo credentials:</p>
-            <p className="font-mono text-xs mt-1">
-              Email: admin@example.com<br />
-              Password: admin123
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>
