@@ -11,6 +11,27 @@ const pool = new Pool({
   },
 });
 
+// GET all users (admin only)
+router.get("/", adminAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT id, email, first_name, last_name, role, is_active, created_at, updated_at FROM users ORDER BY created_at DESC"
+    );
+
+    res.json({
+      message: "Users retrieved successfully",
+      count: result.rows.length,
+      users: result.rows,
+    });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({
+      message: "Server error while fetching users",
+      error: error.message,
+    });
+  }
+});
+
 // GET single user by ID (admin only)
 router.get("/:id", adminAuth, async (req, res) => {
   try {

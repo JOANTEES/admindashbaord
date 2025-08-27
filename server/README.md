@@ -159,7 +159,45 @@ http://localhost:5000
 
 ### User Management Endpoints
 
-#### 4. Get User by ID (Admin Only)
+#### 4. Get All Users (Admin Only)
+
+- **URL:** `GET /api/users`
+- **Description:** Retrieve all users (admin access required)
+- **Headers:** `Authorization: Bearer <ADMIN_JWT_TOKEN>`
+- **Response (200):**
+  ```json
+  {
+    "message": "Users retrieved successfully",
+    "count": 2,
+    "users": [
+      {
+        "id": 1,
+        "email": "admin@joantee.com",
+        "first_name": "Admin",
+        "last_name": "User",
+        "role": "admin",
+        "is_active": true,
+        "created_at": "2025-08-16T13:47:04.079Z",
+        "updated_at": "2025-08-16T13:47:04.079Z"
+      },
+      {
+        "id": 2,
+        "email": "test@example.com",
+        "first_name": "Test",
+        "last_name": "User",
+        "role": "customer",
+        "is_active": true,
+        "created_at": "2025-08-16T13:55:00.000Z",
+        "updated_at": "2025-08-16T13:55:00.000Z"
+      }
+    ]
+  }
+  ```
+- **Error Responses:**
+  - **401 Unauthorized:** No or invalid JWT token
+  - **403 Forbidden:** User is not an admin
+
+#### 5. Get User by ID (Admin Only)
 
 - **URL:** `GET /api/users/:id`
 - **Description:** Retrieve a specific user by ID (admin access required)
@@ -189,7 +227,7 @@ http://localhost:5000
 
 ### Product Endpoints
 
-#### 5. Get All Products
+#### 6. Get All Products
 
 - **URL:** `GET /api/products`
 - **Description:** Retrieve all active products (public route - no authentication required)
@@ -228,7 +266,7 @@ http://localhost:5000
   }
   ```
 
-#### 6. Get Single Product by ID
+#### 7. Get Single Product by ID
 
 - **URL:** `GET /api/products/:id`
 - **Description:** Retrieve a specific product by ID (public route - no authentication required)
@@ -258,7 +296,7 @@ http://localhost:5000
 
 ### Utility Endpoints
 
-#### 7. API Status
+#### 8. API Status
 
 - **URL:** `GET /`
 - **Description:** Check if API is running
@@ -270,7 +308,7 @@ http://localhost:5000
   }
   ```
 
-#### 8. Health Check
+#### 9. Health Check
 
 - **URL:** `GET /health`
 - **Description:** Check API health status
@@ -283,7 +321,7 @@ http://localhost:5000
   }
   ```
 
-#### 9. Database Test
+#### 10. Database Test
 
 - **URL:** `GET /db-test`
 - **Description:** Test database connection

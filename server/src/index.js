@@ -92,6 +92,7 @@ app.listen(PORT, () => {
   console.log(`   GET /api/products - List all products`);
   console.log(`   GET /api/products/:id - Get single product by ID`);
   console.log(`👥 User endpoints:`);
+  console.log(`   GET /api/users - Get all users (admin only)`);
   console.log(`   GET /api/users/:id - Get user by ID (admin only)`);
 });
 
