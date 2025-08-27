@@ -88,6 +88,9 @@ app.listen(PORT, () => {
   console.log(`   GET /api/auth/profile - Get user profile`);
   console.log(`🛍️  Product endpoints:`);
   console.log(`   GET /api/products - List all products`);
+  console.log(`   POST /api/products - Create new product (admin only)`);
+  console.log(`   PUT /api/products/:id - Update product (admin only)`);
+  console.log(`   DELETE /api/products/:id - Delete product (admin only)`);
 });
 
 module.exports = app;
