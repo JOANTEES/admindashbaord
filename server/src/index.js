@@ -10,6 +10,7 @@ const PORT = process.env.PORT || 5000;
 // Import routes
 const authRoutes = require("./routes/auth");
 const productRoutes = require("./routes/products");
+const userRoutes = require("./routes/users");
 
 // Database connection
 const pool = new Pool({
@@ -38,6 +39,7 @@ app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/users", userRoutes);
 
 // Test route
 app.get("/", (req, res) => {
@@ -88,6 +90,8 @@ app.listen(PORT, () => {
   console.log(`   GET /api/auth/profile - Get user profile`);
   console.log(`🛍️  Product endpoints:`);
   console.log(`   GET /api/products - List all products`);
+  console.log(`👥 User endpoints:`);
+  console.log(`   GET /api/users/:id - Get user by ID (admin only)`);
 });
 
 module.exports = app;

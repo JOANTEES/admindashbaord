@@ -52,7 +52,8 @@ server/
 │   ├── index.js              # Main server file
 │   ├── routes/
 │   │   ├── auth.js           # Authentication routes
-│   │   └── products.js       # Product management routes
+│   │   ├── products.js       # Product management routes
+│   │   └── users.js          # User management routes
 │   ├── middleware/
 │   │   └── auth.js           # Authentication middleware
 │   └── database/
@@ -156,9 +157,39 @@ http://localhost:5000
   }
   ```
 
+### User Management Endpoints
+
+#### 4. Get User by ID (Admin Only)
+
+- **URL:** `GET /api/users/:id`
+- **Description:** Retrieve a specific user by ID (admin access required)
+- **Headers:** `Authorization: Bearer <ADMIN_JWT_TOKEN>`
+- **Parameters:** `:id` - User ID (number)
+- **Response (200):**
+  ```json
+  {
+    "message": "User retrieved successfully",
+    "user": {
+      "id": 1,
+      "email": "admin@joantee.com",
+      "first_name": "Admin",
+      "last_name": "User",
+      "role": "admin",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00.000Z",
+      "updated_at": "2024-01-01T00:00:00.000Z"
+    }
+  }
+  ```
+- **Error Responses:**
+  - **400 Bad Request:** Invalid user ID format
+  - **401 Unauthorized:** No or invalid JWT token
+  - **403 Forbidden:** User is not an admin
+  - **404 Not Found:** User with specified ID doesn't exist
+
 ### Product Endpoints
 
-#### 4. Get All Products
+#### 5. Get All Products
 
 - **URL:** `GET /api/products`
 - **Description:** Retrieve all active products (public route - no authentication required)
@@ -199,7 +230,7 @@ http://localhost:5000
 
 ### Utility Endpoints
 
-#### 5. API Status
+#### 6. API Status
 
 - **URL:** `GET /`
 - **Description:** Check if API is running
@@ -211,7 +242,7 @@ http://localhost:5000
   }
   ```
 
-#### 6. Health Check
+#### 7. Health Check
 
 - **URL:** `GET /health`
 - **Description:** Check API health status
@@ -224,7 +255,7 @@ http://localhost:5000
   }
   ```
 
-#### 7. Database Test
+#### 8. Database Test
 
 - **URL:** `GET /db-test`
 - **Description:** Test database connection
@@ -264,7 +295,37 @@ Routes that require authentication will return:
 - **401 Unauthorized** if token is invalid
 - **403 Forbidden** if user doesn't have required role (for admin routes)
 
+### Admin Access
+
+Some endpoints require admin role (`role: "admin"`):
+
+- `GET /api/users/:id` - Get user details
+- Future endpoints: Create/Update/Delete products, Manage users
+
+**Sample Admin User:**
+
+- Email: `admin@joantee.com`
+- Password: `admin123`
+
 ## 📊 Database Schema
+
+### Users Table Structure
+
+The users table contains the following fields:
+
+```sql
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    role VARCHAR(20) DEFAULT 'customer' CHECK (role IN ('admin', 'customer')),
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
 
 ### Products Table Structure
 
@@ -287,15 +348,34 @@ CREATE TABLE products (
 );
 ```
 
-### Sample Product Data
+### Sample Data
 
-The database comes pre-loaded with sample products:
+The database comes pre-loaded with:
+
+**Sample Users:**
+
+- **Admin User:** admin@joantee.com (role: admin)
+
+**Sample Products:**
 
 - **Classic White T-Shirt** - $29.99 (T-Shirts category)
 - **Denim Jeans** - $79.99 (Jeans category)
 - **Hooded Sweatshirt** - $59.99 (Hoodies category)
 
 ### Data Types for Frontend
+
+**User Fields:**
+
+- **id**: Integer (unique identifier)
+- **email**: String (user email)
+- **first_name**: String (user's first name)
+- **last_name**: String (user's last name)
+- **role**: String ("admin" or "customer")
+- **is_active**: Boolean (account status)
+- **created_at**: ISO Date String (when account was created)
+- **updated_at**: ISO Date String (when account was last updated)
+
+**Product Fields:**
 
 - **id**: Integer (unique identifier)
 - **name**: String (product name)
@@ -314,9 +394,11 @@ The database comes pre-loaded with sample products:
 2. ✅ Create database connection and models
 3. ✅ Implement user authentication
 4. ✅ Create basic product listing API
-5. 🔄 Add product management (Create, Update, Delete)
-6. 🔄 Implement order system
-7. 🔄 Add validation and error handling
+5. ✅ Create basic user management API
+6. 🔄 Add product management (Create, Update, Delete)
+7. 🔄 Add user listing and management
+8. 🔄 Implement order system
+9. 🔄 Add validation and error handling
 
 ## 🆘 Troubleshooting
 
@@ -325,6 +407,7 @@ The database comes pre-loaded with sample products:
 - **Environment variables not loading**: Make sure your `.env` file is in the server directory
 - **Database connection failed**: Check your DATABASE_URL in the `.env` file
 - **JWT errors**: Make sure JWT_SECRET is set in your `.env` file
+- **Admin access denied**: Make sure you're using an admin user's JWT token
 
 ## 📚 Dependencies
 
