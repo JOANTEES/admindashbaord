@@ -228,9 +228,37 @@ http://localhost:5000
   }
   ```
 
+#### 6. Get Single Product by ID
+
+- **URL:** `GET /api/products/:id`
+- **Description:** Retrieve a specific product by ID (public route - no authentication required)
+- **Headers:** None required
+- **Parameters:** `:id` - Product ID (number)
+- **Response (200):**
+  ```json
+  {
+    "message": "Product retrieved successfully",
+    "product": {
+      "id": 1,
+      "name": "Classic White T-Shirt",
+      "description": "Premium cotton classic fit t-shirt",
+      "price": "29.99",
+      "category": "T-Shirts",
+      "size": "M",
+      "color": "White",
+      "stock_quantity": 50,
+      "image_url": null,
+      "created_at": "2024-01-01T00:00:00.000Z"
+    }
+  }
+  ```
+- **Error Responses:**
+  - **400 Bad Request:** Invalid product ID format (not a number)
+  - **404 Not Found:** Product with specified ID doesn't exist or is inactive
+
 ### Utility Endpoints
 
-#### 6. API Status
+#### 7. API Status
 
 - **URL:** `GET /`
 - **Description:** Check if API is running
@@ -242,7 +270,7 @@ http://localhost:5000
   }
   ```
 
-#### 7. Health Check
+#### 8. Health Check
 
 - **URL:** `GET /health`
 - **Description:** Check API health status
@@ -255,7 +283,7 @@ http://localhost:5000
   }
   ```
 
-#### 8. Database Test
+#### 9. Database Test
 
 - **URL:** `GET /db-test`
 - **Description:** Test database connection
