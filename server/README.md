@@ -197,9 +197,116 @@ http://localhost:5000
   }
   ```
 
+#### 5. Create New Product (Admin Only)
+
+- **URL:** `POST /api/products`
+- **Description:** Create a new product (admin access required)
+- **Headers:** `Authorization: Bearer <ADMIN_JWT_TOKEN>`
+- **Request Body:**
+  ```json
+  {
+    "name": "New Product",
+    "description": "Product description",
+    "price": 49.99,
+    "category": "Category Name",
+    "size": "M",
+    "color": "Blue",
+    "stock_quantity": 25,
+    "image_url": "https://example.com/image.jpg"
+  }
+  ```
+- **Required Fields:** `name`, `price`, `category`, `stock_quantity`
+- **Optional Fields:** `description`, `size`, `color`, `image_url`
+- **Response (201):**
+  ```json
+  {
+    "message": "Product created successfully",
+    "product": {
+      "id": 4,
+      "name": "New Product",
+      "description": "Product description",
+      "price": "49.99",
+      "category": "Category Name",
+      "size": "M",
+      "color": "Blue",
+      "stock_quantity": 25,
+      "image_url": "https://example.com/image.jpg",
+      "created_at": "2024-01-01T00:00:00.000Z"
+    }
+  }
+  ```
+- **Error Responses:**
+  - **400 Bad Request:** Validation failed (missing required fields, invalid price, etc.)
+  - **401 Unauthorized:** No or invalid JWT token
+  - **403 Forbidden:** User is not an admin
+
+#### 6. Update Product (Admin Only)
+
+- **URL:** `PUT /api/products/:id`
+- **Description:** Update an existing product (admin access required)
+- **Headers:** `Authorization: Bearer <ADMIN_JWT_TOKEN>`
+- **Parameters:** `:id` - Product ID (number)
+- **Request Body:** Any combination of fields to update
+  ```json
+  {
+    "price": 39.99,
+    "stock_quantity": 40
+  }
+  ```
+- **All Fields Optional:** `name`, `description`, `price`, `category`, `size`, `color`, `stock_quantity`, `image_url`
+- **Response (200):**
+  ```json
+  {
+    "message": "Product updated successfully",
+    "product": {
+      "id": 1,
+      "name": "Classic White T-Shirt",
+      "description": "Premium cotton classic fit t-shirt",
+      "price": "39.99",
+      "category": "T-Shirts",
+      "size": "M",
+      "color": "White",
+      "stock_quantity": 40,
+      "image_url": null,
+      "created_at": "2024-01-01T00:00:00.000Z",
+      "updated_at": "2024-01-01T00:00:00.000Z"
+    }
+  }
+  ```
+- **Error Responses:**
+  - **400 Bad Request:** Validation failed or no fields provided for update
+  - **401 Unauthorized:** No or invalid JWT token
+  - **403 Forbidden:** User is not an admin
+  - **404 Not Found:** Product with specified ID doesn't exist
+
+#### 7. Delete Product (Admin Only)
+
+- **URL:** `DELETE /api/products/:id`
+- **Description:** Delete a product (admin access required) - Soft delete (sets is_active = false)
+- **Headers:** `Authorization: Bearer <ADMIN_JWT_TOKEN>`
+- **Parameters:** `:id` - Product ID (number)
+- **Response (200):**
+  ```json
+  {
+    "message": "Product deleted successfully",
+    "product": {
+      "id": 1,
+      "name": "Classic White T-Shirt",
+      "is_active": false
+    }
+  }
+  ```
+- **Error Responses:**
+  - **400 Bad Request:** Invalid product ID format
+  - **401 Unauthorized:** No or invalid JWT token
+  - **403 Forbidden:** User is not an admin
+  - **404 Not Found:** Product with specified ID doesn't exist
+
+**Note:** Delete is a soft delete - products are marked as inactive but remain in the database. They won't appear in the "Get All Products" endpoint which filters by `is_active = true`.
+
 ### Utility Endpoints
 
-#### 5. API Status
+#### 8. API Status
 
 - **URL:** `GET /`
 - **Description:** Check if API is running
@@ -211,7 +318,7 @@ http://localhost:5000
   }
   ```
 
-#### 6. Health Check
+#### 9. Health Check
 
 - **URL:** `GET /health`
 - **Description:** Check API health status
@@ -224,7 +331,7 @@ http://localhost:5000
   }
   ```
 
-#### 7. Database Test
+#### 10. Database Test
 
 - **URL:** `GET /db-test`
 - **Description:** Test database connection
