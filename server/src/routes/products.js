@@ -33,6 +33,41 @@ router.get("/", async (req, res) => {
   }
 });
 
+// GET single product by ID (public route - no authentication required)
+router.get("/:id", async (req, res) => {
+  try {
+    const productId = parseInt(req.params.id);
+
+    if (isNaN(productId)) {
+      return res.status(400).json({
+        message: "Invalid product ID. Must be a number.",
+      });
+    }
+
+    const result = await pool.query(
+      "SELECT id, name, description, price, category, size, color, stock_quantity, image_url, created_at FROM products WHERE id = $1 AND is_active = true",
+      [productId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message: "Product not found",
+      });
+    }
+
+    res.json({
+      message: "Product retrieved successfully",
+      product: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Error fetching product:", error);
+    res.status(500).json({
+      message: "Server error while fetching product",
+      error: error.message,
+    });
+  }
+});
+
 // POST create new product (admin only)
 router.post(
   "/",
