@@ -110,19 +110,7 @@ class ApiClient {
   // TODO: Admin endpoints - these don't exist in your backend yet
   // For now, return mock data or empty responses
   async getDashboardStats() {
-    // Return mock data since this endpoint doesn't exist
-    return {
-      data: {
-        stats: {
-          totalVisitors: 1250,
-          totalPurchases: 89,
-          totalUsers: 156,
-          totalBookings: 23,
-          totalClothes: 6,
-          activeAdmins: 3,
-        },
-      },
-    };
+    return this.request("/dashboard/stats");
   }
 
   async getAdmins() {
@@ -276,58 +264,44 @@ class ApiClient {
     });
   }
 
-  // Bookings endpoints - these don't exist yet
+  // Bookings endpoints
   async getBookings() {
-    // Return mock data since this endpoint doesn't exist
-    return {
-      data: {
-        bookings: [
-          {
-            id: "1",
-            customerName: "Alice Johnson",
-            customerEmail: "alice@example.com",
-            customerPhone: "+233 26 111 2222",
-            eventType: "Wedding Reception",
-            eventDate: "2024-02-15",
-            eventTime: "18:00",
-            duration: "4 hours",
-            location: "Accra Conference Center",
-            price: 2500,
-            status: "confirmed",
-            paymentStatus: "paid",
-            notes: "Outdoor ceremony, indoor reception",
-            createdAt: "2024-01-10T00:00:00.000Z",
-          },
-        ],
-      },
-    };
+    return this.request("/bookings");
   }
 
   async addBooking(bookingData: {
-    customerName: string;
-    customerEmail: string;
-    customerPhone: string;
-    eventType: string;
-    eventDate: string;
-    eventTime: string;
-    duration: string;
-    location: string;
+    name: string;
+    email: string;
+    phone?: string;
+    eventTitle: string;
+    eventType?: string;
+    date: string;
+    time?: string;
+    duration?: number;
+    location?: string;
     price: number;
     notes?: string;
   }) {
-    // Mock response since this endpoint doesn't exist
-    return {
-      data: {
-        message: "Booking added successfully (mock)",
-        booking: {
-          id: "2",
-          ...bookingData,
-          status: "pending",
-          paymentStatus: "pending",
-          createdAt: new Date().toISOString(),
-        },
-      },
-    };
+    return this.request("/bookings", {
+      method: "POST",
+      body: JSON.stringify(bookingData),
+    });
+  }
+
+  async updateBookingStatus(
+    id: string | number,
+    status: "pending" | "confirmed" | "cancelled" | "completed"
+  ) {
+    return this.request(`/bookings/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async deleteBooking(id: string | number) {
+    return this.request(`/bookings/${id}`, {
+      method: "DELETE",
+    });
   }
 
   // Users endpoints - connect to real backend

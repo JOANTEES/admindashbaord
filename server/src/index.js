@@ -11,6 +11,8 @@ const PORT = process.env.PORT || 5000;
 const authRoutes = require("./routes/auth");
 const productRoutes = require("./routes/products");
 const userRoutes = require("./routes/users");
+const dashboardRoutes = require("./routes/dashboard");
+const bookingsRoutes = require("./routes/bookings");
 
 // Database connection
 const pool = new Pool({
@@ -40,6 +42,8 @@ app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/bookings", bookingsRoutes);
 
 // Test route
 app.get("/", (req, res) => {
