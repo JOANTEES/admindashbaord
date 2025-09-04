@@ -14,19 +14,19 @@ const pool = new Pool({
 router.get("/", adminAuth, async (_req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, name, email, phone, event_title, event_type, date, time, duration, location, price, status, payment_status, notes, created_at
-       FROM bookings
-       ORDER BY created_at DESC`
+      `SELECT 
+         b.id, b.name, b.email, b.phone, b.event_title, b.event_type, b.date, b.time, b.duration, b.location, b.price, b.status, b.payment_status, b.notes, b.created_at,
+         COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.booking_id = b.id AND p.status = 'completed'), 0)::decimal AS paid_total
+       FROM bookings b
+       ORDER BY b.created_at DESC`
     );
     return res.json({ bookings: result.rows });
   } catch (error) {
     console.error("Error fetching bookings:", error);
-    return res
-      .status(500)
-      .json({
-        message: "Server error while fetching bookings",
-        error: error.message,
-      });
+    return res.status(500).json({
+      message: "Server error while fetching bookings",
+      error: error.message,
+    });
   }
 });
 
@@ -92,12 +92,10 @@ router.post(
       return res.status(201).json({ booking: insert.rows[0] });
     } catch (error) {
       console.error("Error creating booking:", error);
-      return res
-        .status(500)
-        .json({
-          message: "Server error while creating booking",
-          error: error.message,
-        });
+      return res.status(500).json({
+        message: "Server error while creating booking",
+        error: error.message,
+      });
     }
   }
 );
@@ -129,12 +127,10 @@ router.patch(
       return res.json({ booking: updated.rows[0] });
     } catch (error) {
       console.error("Error updating booking status:", error);
-      return res
-        .status(500)
-        .json({
-          message: "Server error while updating booking status",
-          error: error.message,
-        });
+      return res.status(500).json({
+        message: "Server error while updating booking status",
+        error: error.message,
+      });
     }
   }
 );
@@ -154,12 +150,10 @@ router.delete("/:id", adminAuth, async (req, res) => {
     return res.json({ message: "Booking deleted", booking: deleted.rows[0] });
   } catch (error) {
     console.error("Error deleting booking:", error);
-    return res
-      .status(500)
-      .json({
-        message: "Server error while deleting booking",
-        error: error.message,
-      });
+    return res.status(500).json({
+      message: "Server error while deleting booking",
+      error: error.message,
+    });
   }
 });
 

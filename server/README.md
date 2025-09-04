@@ -1,3 +1,29 @@
+## Payments (Paystack)
+
+Environment:
+
+- `PAYSTACK_SECRET_KEY` (server)
+- Optionally `PAYSTACK_PUBLIC_KEY` (client)
+
+Endpoints:
+
+- `GET /api/payments` (admin) — list payments
+- `POST /api/payments` (admin) — record a manual/offline payment
+- `POST /api/payments/paystack/initialize` (admin) — server-side initialize Paystack transaction. Returns `{ authorization_url, reference, access_code }`
+- `POST /api/payments/paystack/webhook` — Paystack webhook
+
+Webhook setup:
+
+- Configure URL: `<your-server>/api/payments/paystack/webhook`
+- Method: POST
+- Content type: `application/json` (we use `express.raw` here due to signature verification)
+
+Notes:
+
+- Amounts sent to Paystack must be in kobo/pesewas (amount \* 100)
+- Store `reference` and map to a `booking_id` via `metadata.booking_id`
+- On `charge.success`, we insert a payment row and, if a booking is linked, mark `bookings.payment_status = 'paid'`
+
 # Joantee Backend API
 
 This is the backend API server for the Joantee admin dashboard and user web application.

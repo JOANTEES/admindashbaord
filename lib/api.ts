@@ -377,24 +377,31 @@ class ApiClient {
 
   // Payments endpoints - these don't exist yet
   async getPayments() {
-    // Return mock data since this endpoint doesn't exist
-    return {
-      data: {
-        payments: [
-          {
-            id: "1",
-            customerName: "Alice Johnson",
-            customerEmail: "alice@example.com",
-            amount: 2500,
-            paymentMethod: "Mobile Money",
-            status: "completed",
-            transactionId: "TXN123456",
-            date: "2024-01-15T14:30:00.000Z",
-            description: "Wedding Reception Booking",
-          },
-        ],
-      },
-    };
+    return this.request("/payments");
+  }
+
+  async addPayment(payload: {
+    booking_id: number;
+    amount: number;
+    method: "cash" | "bank_transfer" | "check";
+    currency?: string;
+    status?: "pending" | "completed" | "failed" | "refunded" | "cancelled";
+    notes?: string;
+  }) {
+    return this.request("/payments", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async updatePaymentStatus(
+    id: string | number,
+    status: "pending" | "completed" | "failed" | "refunded" | "cancelled"
+  ) {
+    return this.request(`/payments/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
   }
 }
 

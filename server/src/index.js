@@ -13,6 +13,7 @@ const productRoutes = require("./routes/products");
 const userRoutes = require("./routes/users");
 const dashboardRoutes = require("./routes/dashboard");
 const bookingsRoutes = require("./routes/bookings");
+const paymentsRoutes = require("./routes/payments");
 
 // Database connection
 const pool = new Pool({
@@ -44,6 +45,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/bookings", bookingsRoutes);
+app.use("/api/payments", paymentsRoutes);
 
 // Test route
 app.get("/", (req, res) => {

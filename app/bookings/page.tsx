@@ -60,6 +60,7 @@ interface Booking {
   price: number;
   status: "confirmed" | "pending" | "cancelled" | "completed";
   paymentStatus: "paid" | "pending" | "partial";
+  paidTotal?: number;
   notes?: string;
   createdAt: string;
 }
@@ -114,6 +115,7 @@ export default function BookingsPage() {
             price: Number(b.price),
             status: b.status,
             paymentStatus: b.payment_status,
+            paidTotal: Number(b.paid_total ?? 0),
             notes: b.notes || "",
             createdAt: b.created_at,
           }));
@@ -341,12 +343,11 @@ export default function BookingsPage() {
   const confirmedBookings = bookings.filter(
     (b) => b.status === "confirmed"
   ).length;
-  const totalRevenue = bookings
-    .filter((b) => b.paymentStatus === "paid")
-    .reduce((sum, b) => sum + b.price, 0);
-  const pendingRevenue = bookings
-    .filter((b) => b.paymentStatus === "pending")
-    .reduce((sum, b) => sum + b.price, 0);
+  const totalRevenue = bookings.reduce((sum, b) => sum + (b.paidTotal ?? 0), 0);
+  const pendingRevenue = bookings.reduce(
+    (sum, b) => sum + Math.max(b.price - (b.paidTotal ?? 0), 0),
+    0
+  );
 
   return (
     <ProtectedRoute>
