@@ -44,6 +44,7 @@ import { apiClient, Product } from "@/lib/api";
 import { toast } from "sonner";
 import { ProtectedRoute } from "@/components/protected-route";
 import Image from "next/image";
+import { supabase } from "@/lib/supabase";
 
 export default function ClothesPage() {
   const [clothes, setClothes] = useState<Product[]>([]);
@@ -64,6 +65,7 @@ export default function ClothesPage() {
     stock: "",
     imageUrl: "",
   });
+  const [formFile, setFormFile] = useState<File | null>(null);
 
   const [editFormData, setEditFormData] = useState({
     title: "",
@@ -75,6 +77,7 @@ export default function ClothesPage() {
     stock: "",
     imageUrl: "",
   });
+  const [editFormFile, setEditFormFile] = useState<File | null>(null);
 
   useEffect(() => {
     fetchClothes();
@@ -109,6 +112,24 @@ export default function ClothesPage() {
 
   const handleAddClothes = async () => {
     try {
+      let imageUrl: string | undefined = formData.imageUrl || undefined;
+      if (!imageUrl && formFile) {
+        // Upload to Supabase Storage on submit
+        const ext = formFile.name.split(".").pop() || "jpg";
+        const path = `images/${crypto.randomUUID()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("products")
+          .upload(path, formFile, { contentType: formFile.type });
+        if (uploadError) {
+          toast.error("Image upload failed");
+          return;
+        }
+        const { data } = supabase.storage.from("products").getPublicUrl(path);
+        imageUrl = data.publicUrl;
+      }
+      // If user pasted a URL, use it; otherwise, if a File was in imageUrl (not in current form), skip.
+      // For now we keep URL-only to minimize UI churn. We can add <input type="file"> next.
+
       const response = await apiClient.addClothes({
         title: formData.title,
         price: parseFloat(formData.price),
@@ -117,7 +138,7 @@ export default function ClothesPage() {
         size: formData.size,
         color: formData.color,
         stock: parseInt(formData.stock),
-        imageUrl: formData.imageUrl || undefined,
+        imageUrl,
       });
 
       if (response.data) {
@@ -133,6 +154,7 @@ export default function ClothesPage() {
           stock: "",
           imageUrl: "",
         });
+        setFormFile(null);
         fetchClothes(); // Refresh the list
       }
     } catch (error) {
@@ -170,6 +192,20 @@ export default function ClothesPage() {
   const handleUpdateClothes = async () => {
     if (!editingProduct) return;
     try {
+      let imageUrl: string | undefined = editFormData.imageUrl || undefined;
+      if (editFormFile) {
+        const ext = editFormFile.name.split(".").pop() || "jpg";
+        const path = `images/${crypto.randomUUID()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("products")
+          .upload(path, editFormFile, { contentType: editFormFile.type });
+        if (uploadError) {
+          toast.error("Image upload failed");
+          return;
+        }
+        const { data } = supabase.storage.from("products").getPublicUrl(path);
+        imageUrl = data.publicUrl;
+      }
       await apiClient.updateProduct(editingProduct.id, {
         title: editFormData.title,
         price: parseFloat(editFormData.price),
@@ -178,11 +214,12 @@ export default function ClothesPage() {
         size: editFormData.size,
         color: editFormData.color,
         stock: parseInt(editFormData.stock),
-        imageUrl: editFormData.imageUrl || undefined,
+        imageUrl,
       });
       toast.success("Clothes updated successfully");
       setIsEditDialogOpen(false);
       setEditingProduct(null);
+      setEditFormFile(null);
       fetchClothes();
     } catch (error) {
       console.error("Error updating clothes:", error);
@@ -403,21 +440,34 @@ export default function ClothesPage() {
                               placeholder="Enter stock quantity"
                             />
                           </div>
-                          <div>
-                            <Label htmlFor="imageUrl">
-                              Image URL (Optional)
-                            </Label>
-                            <Input
-                              id="imageUrl"
-                              value={formData.imageUrl}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  imageUrl: e.target.value,
-                                })
-                              }
-                              placeholder="Enter image URL"
-                            />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="imageUrl">
+                                Image URL (Optional)
+                              </Label>
+                              <Input
+                                id="imageUrl"
+                                value={formData.imageUrl}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    imageUrl: e.target.value,
+                                  })
+                                }
+                                placeholder="Enter image URL"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="imageFile">Or Select Image</Label>
+                              <Input
+                                id="imageFile"
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) =>
+                                  setFormFile(e.target.files?.[0] || null)
+                                }
+                              />
+                            </div>
                           </div>
                         </div>
                         <DialogFooter>
@@ -551,21 +601,36 @@ export default function ClothesPage() {
                               placeholder="Enter stock quantity"
                             />
                           </div>
-                          <div>
-                            <Label htmlFor="edit_imageUrl">
-                              Image URL (Optional)
-                            </Label>
-                            <Input
-                              id="edit_imageUrl"
-                              value={editFormData.imageUrl}
-                              onChange={(e) =>
-                                setEditFormData({
-                                  ...editFormData,
-                                  imageUrl: e.target.value,
-                                })
-                              }
-                              placeholder="Enter image URL"
-                            />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="edit_imageUrl">
+                                Image URL (Optional)
+                              </Label>
+                              <Input
+                                id="edit_imageUrl"
+                                value={editFormData.imageUrl}
+                                onChange={(e) =>
+                                  setEditFormData({
+                                    ...editFormData,
+                                    imageUrl: e.target.value,
+                                  })
+                                }
+                                placeholder="Enter image URL"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="edit_imageFile">
+                                Or Select Image
+                              </Label>
+                              <Input
+                                id="edit_imageFile"
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) =>
+                                  setEditFormFile(e.target.files?.[0] || null)
+                                }
+                              />
+                            </div>
                           </div>
                         </div>
                         <DialogFooter>
