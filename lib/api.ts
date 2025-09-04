@@ -205,17 +205,71 @@ class ApiClient {
     color: string;
     stock: number;
   }) {
-    // TODO: This endpoint doesn't exist yet - return mock response
-    return {
-      data: {
-        message: "Product added successfully (mock)",
-        product: {
-          id: "7",
-          ...productData,
-          created_at: new Date().toISOString(),
-        },
-      },
-    };
+    // Map frontend fields to backend schema
+    const payload = {
+      name: productData.title,
+      description: productData.description,
+      price: productData.price,
+      category: productData.category,
+      size: productData.size,
+      color: productData.color,
+      stock_quantity: productData.stock,
+      image_url: productData.imageUrl,
+    } as Record<string, unknown>;
+
+    // Remove undefined to avoid validation issues
+    Object.keys(payload).forEach((key) => {
+      if (payload[key] === undefined) {
+        delete payload[key];
+      }
+    });
+
+    return this.request("/products", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async updateProduct(
+    id: number | string,
+    updates: Partial<{
+      title: string;
+      description: string;
+      price: number;
+      category: string;
+      size: string;
+      color: string;
+      stock: number;
+      imageUrl?: string;
+    }>
+  ) {
+    const payload = {
+      name: updates.title,
+      description: updates.description,
+      price: updates.price,
+      category: updates.category,
+      size: updates.size,
+      color: updates.color,
+      stock_quantity: updates.stock,
+      image_url: updates.imageUrl,
+    } as Record<string, unknown>;
+
+    Object.keys(payload).forEach((key) => {
+      if (payload[key] === undefined) {
+        delete payload[key];
+      }
+    });
+
+    return this.request(`/products/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async deleteProduct(id: number | string) {
+    return this.request(`/products/${id}`, {
+      method: "DELETE",
+    });
   }
 
   // Bookings endpoints - these don't exist yet
@@ -275,6 +329,10 @@ class ApiClient {
   // Users endpoints - connect to real backend
   async getUsers() {
     return this.request("/users");
+  }
+
+  async getUserById(id: string | number) {
+    return this.request(`/users/${id}`);
   }
 
   async registerUser(userData: {
