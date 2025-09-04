@@ -1,5 +1,6 @@
 // API client for frontend-backend communication
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 class ApiClient {
   private baseURL: string;
@@ -12,24 +13,24 @@ class ApiClient {
   // Set JWT token for authenticated requests
   setToken(token: string) {
     this.token = token;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('authToken', token);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("authToken", token);
     }
   }
 
   // Clear JWT token
   clearToken() {
     this.token = null;
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('authToken');
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("authToken");
     }
   }
 
   // Get token from localStorage
   getToken(): string | null {
     if (this.token) return this.token;
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('authToken');
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("authToken");
     }
     return null;
   }
@@ -46,16 +47,16 @@ class ApiClient {
     try {
       const token = this.getToken();
       const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         ...options.headers,
       };
 
       if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+        headers["Authorization"] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseURL}${endpoint}`, {
-        method: options.method || 'GET',
+        method: options.method || "GET",
         headers,
         body: options.body,
       });
@@ -68,15 +69,15 @@ class ApiClient {
       const data = await response.json();
       return { data };
     } catch (error) {
-      console.error('API request failed:', error);
-      return { data: {} as T, error: 'Network error' };
+      console.error("API request failed:", error);
+      return { data: {} as T, error: "Network error" };
     }
   }
 
   // Authentication endpoints
   async login(credentials: { email: string; password: string }) {
-    return this.request('/auth/login', {
-      method: 'POST',
+    return this.request("/auth/login", {
+      method: "POST",
       body: JSON.stringify(credentials),
     });
   }
@@ -87,19 +88,19 @@ class ApiClient {
     first_name: string;
     last_name: string;
   }) {
-    return this.request('/auth/register', {
-      method: 'POST',
+    return this.request("/auth/register", {
+      method: "POST",
       body: JSON.stringify(userData),
     });
   }
 
   async getProfile() {
-    return this.request('/auth/profile');
+    return this.request("/auth/profile");
   }
 
   // Products endpoints (using existing backend)
   async getProducts() {
-    return this.request('/products');
+    return this.request("/products");
   }
 
   // TODO: Admin endpoints - these don't exist in your backend yet
@@ -114,9 +115,9 @@ class ApiClient {
           totalUsers: 156,
           totalBookings: 23,
           totalClothes: 6,
-          activeAdmins: 3
-        }
-      }
+          activeAdmins: 3,
+        },
+      },
     };
   }
 
@@ -126,25 +127,25 @@ class ApiClient {
       data: {
         admins: [
           {
-            id: '1',
-            name: 'John Doe',
-            email: 'john@example.com',
-            phone: '+233 20 123 4567',
-            role: 'admin' as const,
-            status: 'active' as const,
-            createdAt: '2024-01-01T00:00:00.000Z'
+            id: "1",
+            name: "John Doe",
+            email: "john@example.com",
+            phone: "+233 20 123 4567",
+            role: "admin" as const,
+            status: "active" as const,
+            createdAt: "2024-01-01T00:00:00.000Z",
           },
           {
-            id: '2',
-            name: 'Jane Smith',
-            email: 'jane@example.com',
-            phone: '+233 24 987 6543',
-            role: 'moderator' as const,
-            status: 'active' as const,
-            createdAt: '2024-01-15T00:00:00.000Z'
-          }
-        ]
-      }
+            id: "2",
+            name: "Jane Smith",
+            email: "jane@example.com",
+            phone: "+233 24 987 6543",
+            role: "moderator" as const,
+            status: "active" as const,
+            createdAt: "2024-01-15T00:00:00.000Z",
+          },
+        ],
+      },
     };
   }
 
@@ -152,25 +153,30 @@ class ApiClient {
     name: string;
     email: string;
     phone: string;
-    role: 'admin' | 'moderator';
+    role: "admin" | "moderator";
     password: string;
   }) {
     // Mock response since this endpoint doesn't exist
     return {
       data: {
-        message: 'Admin added successfully (mock)',
-        admin: { id: '3', ...adminData, status: 'active', createdAt: new Date().toISOString() }
-      }
+        message: "Admin added successfully (mock)",
+        admin: {
+          id: "3",
+          ...adminData,
+          status: "active",
+          createdAt: new Date().toISOString(),
+        },
+      },
     };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async updateAdminStatus(_id: string, _status: 'active' | 'inactive') {
+  async updateAdminStatus(_id: string, _status: "active" | "inactive") {
     // Mock response since this endpoint doesn't exist
     return {
       data: {
-        message: 'Admin status updated successfully (mock)'
-      }
+        message: "Admin status updated successfully (mock)",
+      },
     };
   }
 
@@ -179,14 +185,14 @@ class ApiClient {
     // Mock response since this endpoint doesn't exist
     return {
       data: {
-        message: 'Admin deleted successfully (mock)'
-      }
+        message: "Admin deleted successfully (mock)",
+      },
     };
   }
 
   // Clothes/Products endpoints - using existing /products endpoint
   async getClothes() {
-    return this.request('/products');
+    return this.request("/products");
   }
 
   async addClothes(productData: {
@@ -202,9 +208,13 @@ class ApiClient {
     // TODO: This endpoint doesn't exist yet - return mock response
     return {
       data: {
-        message: 'Product added successfully (mock)',
-        product: { id: '7', ...productData, created_at: new Date().toISOString() }
-      }
+        message: "Product added successfully (mock)",
+        product: {
+          id: "7",
+          ...productData,
+          created_at: new Date().toISOString(),
+        },
+      },
     };
   }
 
@@ -215,23 +225,23 @@ class ApiClient {
       data: {
         bookings: [
           {
-            id: '1',
-            customerName: 'Alice Johnson',
-            customerEmail: 'alice@example.com',
-            customerPhone: '+233 26 111 2222',
-            eventType: 'Wedding Reception',
-            eventDate: '2024-02-15',
-            eventTime: '18:00',
-            duration: '4 hours',
-            location: 'Accra Conference Center',
+            id: "1",
+            customerName: "Alice Johnson",
+            customerEmail: "alice@example.com",
+            customerPhone: "+233 26 111 2222",
+            eventType: "Wedding Reception",
+            eventDate: "2024-02-15",
+            eventTime: "18:00",
+            duration: "4 hours",
+            location: "Accra Conference Center",
             price: 2500,
-            status: 'confirmed',
-            paymentStatus: 'paid',
-            notes: 'Outdoor ceremony, indoor reception',
-            createdAt: '2024-01-10T00:00:00.000Z'
-          }
-        ]
-      }
+            status: "confirmed",
+            paymentStatus: "paid",
+            notes: "Outdoor ceremony, indoor reception",
+            createdAt: "2024-01-10T00:00:00.000Z",
+          },
+        ],
+      },
     };
   }
 
@@ -250,55 +260,21 @@ class ApiClient {
     // Mock response since this endpoint doesn't exist
     return {
       data: {
-        message: 'Booking added successfully (mock)',
-        booking: { id: '2', ...bookingData, status: 'pending', paymentStatus: 'pending', createdAt: new Date().toISOString() }
-      }
+        message: "Booking added successfully (mock)",
+        booking: {
+          id: "2",
+          ...bookingData,
+          status: "pending",
+          paymentStatus: "pending",
+          createdAt: new Date().toISOString(),
+        },
+      },
     };
   }
 
   // Users endpoints - connect to real backend
   async getUsers() {
-    // Since you don't have a GET /users endpoint yet, we'll use the registration endpoint
-    // to create users and store them in a way that can be retrieved
-    // For now, return mock data but prepare for real API
-    try {
-      // TODO: Replace with real GET /users endpoint when available
-      // const response = await this.request('/users');
-      // return response;
-      
-      // Mock data for now
-      return {
-        data: {
-          users: [
-            {
-              id: '1',
-              name: 'Admin User',
-              email: 'admin@joantees.com',
-              phone: '+233 24 123 4567',
-              role: 'admin',
-              status: 'active',
-              department: 'Management',
-              lastLogin: '2024-03-10T10:30:00Z',
-              createdAt: '2024-01-01T00:00:00.000Z'
-            },
-            {
-              id: '2',
-              name: 'John Manager',
-              email: 'john@joantees.com',
-              phone: '+233 20 987 6543',
-              role: 'manager',
-              status: 'active',
-              department: 'Operations',
-              lastLogin: '2024-03-09T14:20:00Z',
-              createdAt: '2024-01-15T00:00:00.000Z'
-            }
-          ]
-        }
-      };
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      return { data: { users: [] } };
-    }
+    return this.request("/users");
   }
 
   async registerUser(userData: {
@@ -307,24 +283,27 @@ class ApiClient {
     first_name: string;
     last_name: string;
   }) {
-    return this.request('/auth/register', {
-      method: 'POST',
+    return this.request("/auth/register", {
+      method: "POST",
       body: JSON.stringify(userData),
     });
   }
 
-  async updateUser(_id: string, userData: {
-    first_name?: string;
-    last_name?: string;
-    email?: string;
-    role?: string;
-  }) {
+  async updateUser(
+    _id: string,
+    userData: {
+      first_name?: string;
+      last_name?: string;
+      email?: string;
+      role?: string;
+    }
+  ) {
     // TODO: Replace with real PUT /users/:id endpoint when available
     return {
       data: {
-        message: 'User updated successfully (mock)',
-        user: { id: _id, ...userData }
-      }
+        message: "User updated successfully (mock)",
+        user: { id: _id, ...userData },
+      },
     };
   }
 
@@ -333,18 +312,21 @@ class ApiClient {
     // TODO: Replace with real DELETE /users/:id endpoint when available
     return {
       data: {
-        message: 'User deleted successfully (mock)'
-      }
+        message: "User deleted successfully (mock)",
+      },
     };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async updateUserStatus(_id: string, _status: 'active' | 'inactive' | 'suspended') {
+  async updateUserStatus(
+    _id: string,
+    _status: "active" | "inactive" | "suspended"
+  ) {
     // TODO: Replace with real PATCH /users/:id/status endpoint when available
     return {
       data: {
-        message: 'User status updated successfully (mock)'
-      }
+        message: "User status updated successfully (mock)",
+      },
     };
   }
 
@@ -355,18 +337,18 @@ class ApiClient {
       data: {
         payments: [
           {
-            id: '1',
-            customerName: 'Alice Johnson',
-            customerEmail: 'alice@example.com',
+            id: "1",
+            customerName: "Alice Johnson",
+            customerEmail: "alice@example.com",
             amount: 2500,
-            paymentMethod: 'Mobile Money',
-            status: 'completed',
-            transactionId: 'TXN123456',
-            date: '2024-01-15T14:30:00.000Z',
-            description: 'Wedding Reception Booking'
-          }
-        ]
-      }
+            paymentMethod: "Mobile Money",
+            status: "completed",
+            transactionId: "TXN123456",
+            date: "2024-01-15T14:30:00.000Z",
+            description: "Wedding Reception Booking",
+          },
+        ],
+      },
     };
   }
 }
@@ -380,8 +362,8 @@ export interface Admin {
   name: string;
   email: string;
   phone: string;
-  role: 'super_admin' | 'admin' | 'moderator';
-  status: 'active' | 'inactive';
+  role: "super_admin" | "admin" | "moderator";
+  status: "active" | "inactive";
   createdAt: string;
 }
 
@@ -409,8 +391,8 @@ export interface Booking {
   duration: string;
   location: string;
   price: number;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
-  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
+  status: "pending" | "confirmed" | "cancelled" | "completed";
+  paymentStatus: "pending" | "paid" | "failed" | "refunded";
   notes?: string;
   createdAt: string;
 }
@@ -420,8 +402,8 @@ export interface User {
   name: string;
   email: string;
   phone: string;
-  role: 'admin' | 'moderator' | 'customer';
-  status: 'active' | 'inactive';
+  role: "admin" | "moderator" | "customer";
+  status: "active" | "inactive";
   department: string;
   lastLogin: string;
   createdAt: string;
@@ -432,8 +414,8 @@ export interface Payment {
   customerName: string;
   customerEmail: string;
   amount: number;
-  paymentMethod: 'Mobile Money' | 'Bank Transfer' | 'Cash' | 'Credit Card';
-  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  paymentMethod: "Mobile Money" | "Bank Transfer" | "Cash" | "Credit Card";
+  status: "pending" | "completed" | "failed" | "refunded";
   transactionId: string;
   date: string;
   description: string;
@@ -460,4 +442,4 @@ export interface Product {
   stock_quantity: number;
   image_url: string | null;
   created_at: string;
-} 
+}
