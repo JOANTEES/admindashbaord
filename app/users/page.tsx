@@ -38,6 +38,7 @@ import {
   IconSortAscending,
   IconSortDescending,
   IconUser,
+  IconEye,
   IconEdit,
   IconTrash,
   IconShield,
@@ -83,31 +84,41 @@ export default function UsersPage() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [isViewOpen, setIsViewOpen] = useState(false);
+  const [viewData, setViewData] = useState<{
+    id: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    role: string;
+    phone?: string;
+    department?: string;
+    last_login?: string;
+    created_at?: string;
+  } | null>(null);
+  const [isViewLoading, setIsViewLoading] = useState(false);
 
   // Fetch users from backend
   const fetchUsers = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await apiClient.getUsers();
-
-      if (response.data && response.data.users) {
+      type BackendUser = {
+        id: string;
+        first_name: string;
+        last_name: string;
+        email: string;
+        phone?: string;
+        role?: string;
+        status?: string;
+        department?: string;
+        last_login?: string;
+        created_at?: string;
+      };
+      const data = response.data as { users?: BackendUser[] };
+      if (data && data.users) {
         // Transform backend data to match frontend interface
-        interface BackendUser {
-          id: string;
-          first_name: string;
-          last_name: string;
-          email: string;
-          phone?: string;
-          role?: string;
-          status?: string;
-          department?: string;
-          last_login?: string;
-          created_at?: string;
-        }
-
-        const transformedUsers = (
-          response.data.users as unknown as BackendUser[]
-        ).map((user) => ({
+        const transformedUsers = data.users.map((user) => ({
           id: user.id,
           name: `${user.first_name} ${user.last_name}`,
           email: user.email,
@@ -330,6 +341,37 @@ export default function UsersPage() {
     } catch (error) {
       console.error("Error deleting user:", error);
       toast.error("Failed to delete user");
+    }
+  };
+
+  const handleView = async (id: string) => {
+    try {
+      setIsViewLoading(true);
+      setIsViewOpen(true);
+      const res = await apiClient.getUserById(id);
+      interface BackendUserDetails {
+        id: string;
+        email: string;
+        first_name: string;
+        last_name: string;
+        role: string;
+        phone?: string;
+        department?: string;
+        last_login?: string;
+        created_at?: string;
+      }
+      const payload = res.data as { user?: BackendUserDetails };
+      if (payload && payload.user) {
+        setViewData(payload.user);
+      } else {
+        setViewData(null);
+      }
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      toast.error("Failed to load user details");
+      setViewData(null);
+    } finally {
+      setIsViewLoading(false);
     }
   };
 
@@ -827,6 +869,13 @@ export default function UsersPage() {
                                   <Button
                                     variant="outline"
                                     size="sm"
+                                    onClick={() => handleView(user.id)}
+                                  >
+                                    <IconEye className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
                                     onClick={() => handleEdit(user)}
                                   >
                                     <IconEdit className="h-4 w-4" />
@@ -882,6 +931,83 @@ export default function UsersPage() {
                       </p>
                     </div>
                   )}
+
+                  {/* View User Dialog */}
+                  <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
+                    <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>View User</DialogTitle>
+                      </DialogHeader>
+                      {isViewLoading ? (
+                        <div className="flex items-center justify-center h-32">
+                          <IconLoader className="h-6 w-6 animate-spin" />
+                        </div>
+                      ) : viewData ? (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label>First Name</Label>
+                              <div className="mt-1 text-sm">
+                                {viewData.first_name}
+                              </div>
+                            </div>
+                            <div>
+                              <Label>Last Name</Label>
+                              <div className="mt-1 text-sm">
+                                {viewData.last_name}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label>Email</Label>
+                              <div className="mt-1 text-sm break-all">
+                                {viewData.email}
+                              </div>
+                            </div>
+                            <div>
+                              <Label>Phone</Label>
+                              <div className="mt-1 text-sm">
+                                {viewData.phone || "-"}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label>Role</Label>
+                              <div className="mt-1 text-sm">
+                                {viewData.role}
+                              </div>
+                            </div>
+                            <div>
+                              <Label>Department</Label>
+                              <div className="mt-1 text-sm">
+                                {viewData.department || "-"}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label>Last Login</Label>
+                              <div className="mt-1 text-sm">
+                                {formatDate(viewData.last_login || "")}
+                              </div>
+                            </div>
+                            <div>
+                              <Label>Created At</Label>
+                              <div className="mt-1 text-sm">
+                                {formatDate(viewData.created_at || "")}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">
+                          No data
+                        </div>
+                      )}
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </div>
             </div>
