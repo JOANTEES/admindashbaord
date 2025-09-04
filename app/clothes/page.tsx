@@ -1,32 +1,59 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
+import { useState, useEffect } from "react";
+import { AppSidebar } from "@/components/app-sidebar";
+import { SiteHeader } from "@/components/site-header";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
-import { IconPlus, IconSearch, IconFilter, IconSortAscending, IconTrash, IconEdit, IconLoader } from "@tabler/icons-react"
-import { apiClient, Product } from "@/lib/api"
-import { toast } from "sonner"
-import { ProtectedRoute } from "@/components/protected-route"
-import Image from "next/image"
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import {
+  IconPlus,
+  IconSearch,
+  IconFilter,
+  IconSortAscending,
+  IconTrash,
+  IconEdit,
+  IconLoader,
+} from "@tabler/icons-react";
+import { apiClient, Product } from "@/lib/api";
+import { toast } from "sonner";
+import { ProtectedRoute } from "@/components/protected-route";
+import Image from "next/image";
 
 export default function ClothesPage() {
-  const [clothes, setClothes] = useState<Product[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [sortBy, setSortBy] = useState("name")
-  const [filterCategory, setFilterCategory] = useState("all")
+  const [clothes, setClothes] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState("name");
+  const [filterCategory, setFilterCategory] = useState("all");
   const [formData, setFormData] = useState({
     title: "",
     price: "",
@@ -35,39 +62,50 @@ export default function ClothesPage() {
     size: "",
     color: "",
     stock: "",
-    imageUrl: ""
-  })
+    imageUrl: "",
+  });
+
+  const [editFormData, setEditFormData] = useState({
+    title: "",
+    price: "",
+    description: "",
+    category: "",
+    size: "",
+    color: "",
+    stock: "",
+    imageUrl: "",
+  });
 
   useEffect(() => {
-    fetchClothes()
-  }, [])
+    fetchClothes();
+  }, []);
 
   const fetchClothes = async () => {
     try {
-      setIsLoading(true)
-      const response = await apiClient.getClothes()
-      
+      setIsLoading(true);
+      const response = await apiClient.getClothes();
+
       interface ProductsResponse {
         message: string;
         count: number;
         products: Product[];
       }
-      
+
       if (response.data && (response.data as ProductsResponse).products) {
-        setClothes((response.data as ProductsResponse).products)
+        setClothes((response.data as ProductsResponse).products);
       } else if (response.data && Array.isArray(response.data)) {
-        setClothes(response.data)
+        setClothes(response.data);
       } else {
-        setClothes([])
+        setClothes([]);
       }
     } catch (error) {
-      console.error('Error fetching clothes:', error)
-      toast.error('Failed to load clothes')
-      setClothes([])
+      console.error("Error fetching clothes:", error);
+      toast.error("Failed to load clothes");
+      setClothes([]);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleAddClothes = async () => {
     try {
@@ -79,59 +117,110 @@ export default function ClothesPage() {
         size: formData.size,
         color: formData.color,
         stock: parseInt(formData.stock),
-        imageUrl: formData.imageUrl || undefined
-      })
+        imageUrl: formData.imageUrl || undefined,
+      });
 
       if (response.data) {
-        toast.success('Clothes added successfully')
-        setIsAddDialogOpen(false)
-        setFormData({ title: "", price: "", description: "", category: "", size: "", color: "", stock: "", imageUrl: "" })
-        fetchClothes() // Refresh the list
+        toast.success("Clothes added successfully");
+        setIsAddDialogOpen(false);
+        setFormData({
+          title: "",
+          price: "",
+          description: "",
+          category: "",
+          size: "",
+          color: "",
+          stock: "",
+          imageUrl: "",
+        });
+        fetchClothes(); // Refresh the list
       }
     } catch (error) {
-      console.error('Error adding clothes:', error)
-      toast.error('Failed to add clothes')
+      console.error("Error adding clothes:", error);
+      toast.error("Failed to add clothes");
     }
-  }
+  };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleDeleteClothes = async (_id: number) => {
+  const handleDeleteClothes = async (id: number) => {
     try {
-      // TODO: Implement delete endpoint
-      toast.success('Clothes deleted successfully (mock)')
-      fetchClothes() // Refresh the list
+      await apiClient.deleteProduct(id);
+      toast.success("Clothes deleted successfully");
+      fetchClothes(); // Refresh the list
     } catch (error) {
-      console.error('Error deleting clothes:', error)
-      toast.error('Failed to delete clothes')
+      console.error("Error deleting clothes:", error);
+      toast.error("Failed to delete clothes");
     }
-  }
+  };
+
+  const openEditDialog = (item: Product) => {
+    setEditingProduct(item);
+    setEditFormData({
+      title: item.name || "",
+      price: String(item.price || ""),
+      description: item.description || "",
+      category: item.category || "",
+      size: item.size || "",
+      color: item.color || "",
+      stock: String(item.stock_quantity ?? ""),
+      imageUrl: item.image_url || "",
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateClothes = async () => {
+    if (!editingProduct) return;
+    try {
+      await apiClient.updateProduct(editingProduct.id, {
+        title: editFormData.title,
+        price: parseFloat(editFormData.price),
+        description: editFormData.description,
+        category: editFormData.category,
+        size: editFormData.size,
+        color: editFormData.color,
+        stock: parseInt(editFormData.stock),
+        imageUrl: editFormData.imageUrl || undefined,
+      });
+      toast.success("Clothes updated successfully");
+      setIsEditDialogOpen(false);
+      setEditingProduct(null);
+      fetchClothes();
+    } catch (error) {
+      console.error("Error updating clothes:", error);
+      toast.error("Failed to update clothes");
+    }
+  };
 
   // Filter and sort clothes
   const filteredAndSortedClothes = clothes
-    .filter(item => {
-      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           item.description.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesCategory = filterCategory === "all" || item.category === filterCategory
-      return matchesSearch && matchesCategory
+    .filter((item) => {
+      const matchesSearch =
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.description.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory =
+        filterCategory === "all" || item.category === filterCategory;
+      return matchesSearch && matchesCategory;
     })
     .sort((a, b) => {
       switch (sortBy) {
         case "name":
-          return a.name.localeCompare(b.name)
+          return a.name.localeCompare(b.name);
         case "price":
-          return parseFloat(a.price) - parseFloat(b.price)
+          return parseFloat(a.price) - parseFloat(b.price);
         case "stock":
-          return a.stock_quantity - b.stock_quantity
+          return a.stock_quantity - b.stock_quantity;
         case "category":
-          return a.category.localeCompare(b.category)
+          return a.category.localeCompare(b.category);
         default:
-          return 0
+          return 0;
       }
-    })
+    });
 
-  const totalValue = filteredAndSortedClothes.reduce((sum, item) => sum + (parseFloat(item.price) * item.stock_quantity), 0)
+  const totalValue = filteredAndSortedClothes.reduce(
+    (sum, item) => sum + parseFloat(item.price) * item.stock_quantity,
+    0
+  );
 
-  const categories = Array.from(new Set(clothes.map(item => item.category)))
+  const categories = Array.from(new Set(clothes.map((item) => item.category)));
 
   if (isLoading) {
     return (
@@ -164,7 +253,7 @@ export default function ClothesPage() {
           </SidebarInset>
         </SidebarProvider>
       </ProtectedRoute>
-    )
+    );
   }
 
   return (
@@ -186,10 +275,17 @@ export default function ClothesPage() {
                 <div className="px-4 lg:px-6">
                   <div className="flex justify-between items-center mb-6">
                     <div>
-                      <h1 className="text-3xl font-bold text-foreground">Clothes Management</h1>
-                      <p className="text-muted-foreground">Manage your clothing inventory</p>
+                      <h1 className="text-3xl font-bold text-foreground">
+                        Clothes Management
+                      </h1>
+                      <p className="text-muted-foreground">
+                        Manage your clothing inventory
+                      </p>
                     </div>
-                    <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                    <Dialog
+                      open={isAddDialogOpen}
+                      onOpenChange={setIsAddDialogOpen}
+                    >
                       <DialogTrigger asChild>
                         <Button>
                           <IconPlus className="h-4 w-4 mr-2" />
@@ -209,7 +305,12 @@ export default function ClothesPage() {
                             <Input
                               id="title"
                               value={formData.title}
-                              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  title: e.target.value,
+                                })
+                              }
                               placeholder="Enter clothes name"
                             />
                           </div>
@@ -220,7 +321,12 @@ export default function ClothesPage() {
                               type="number"
                               step="0.01"
                               value={formData.price}
-                              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  price: e.target.value,
+                                })
+                              }
                               placeholder="Enter price"
                             />
                           </div>
@@ -229,7 +335,12 @@ export default function ClothesPage() {
                             <Input
                               id="description"
                               value={formData.description}
-                              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  description: e.target.value,
+                                })
+                              }
                               placeholder="Enter description"
                             />
                           </div>
@@ -238,7 +349,12 @@ export default function ClothesPage() {
                             <Input
                               id="category"
                               value={formData.category}
-                              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  category: e.target.value,
+                                })
+                              }
                               placeholder="Enter category"
                             />
                           </div>
@@ -248,7 +364,12 @@ export default function ClothesPage() {
                               <Input
                                 id="size"
                                 value={formData.size}
-                                onChange={(e) => setFormData({ ...formData, size: e.target.value })}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    size: e.target.value,
+                                  })
+                                }
                                 placeholder="Enter size"
                               />
                             </div>
@@ -257,7 +378,12 @@ export default function ClothesPage() {
                               <Input
                                 id="color"
                                 value={formData.color}
-                                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    color: e.target.value,
+                                  })
+                                }
                                 placeholder="Enter color"
                               />
                             </div>
@@ -268,26 +394,189 @@ export default function ClothesPage() {
                               id="stock"
                               type="number"
                               value={formData.stock}
-                              onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  stock: e.target.value,
+                                })
+                              }
                               placeholder="Enter stock quantity"
                             />
                           </div>
                           <div>
-                            <Label htmlFor="imageUrl">Image URL (Optional)</Label>
+                            <Label htmlFor="imageUrl">
+                              Image URL (Optional)
+                            </Label>
                             <Input
                               id="imageUrl"
                               value={formData.imageUrl}
-                              onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  imageUrl: e.target.value,
+                                })
+                              }
                               placeholder="Enter image URL"
                             />
                           </div>
                         </div>
                         <DialogFooter>
-                          <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                          <Button
+                            variant="outline"
+                            onClick={() => setIsAddDialogOpen(false)}
+                          >
                             Cancel
                           </Button>
                           <Button onClick={handleAddClothes}>
                             Add Clothes
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                    {/* Edit Clothes Dialog */}
+                    <Dialog
+                      open={isEditDialogOpen}
+                      onOpenChange={setIsEditDialogOpen}
+                    >
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Edit Clothes</DialogTitle>
+                          <DialogDescription>
+                            Update product details and save changes.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="edit_title">Name</Label>
+                            <Input
+                              id="edit_title"
+                              value={editFormData.title}
+                              onChange={(e) =>
+                                setEditFormData({
+                                  ...editFormData,
+                                  title: e.target.value,
+                                })
+                              }
+                              placeholder="Enter clothes name"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="edit_price">Price (₵)</Label>
+                            <Input
+                              id="edit_price"
+                              type="number"
+                              step="0.01"
+                              value={editFormData.price}
+                              onChange={(e) =>
+                                setEditFormData({
+                                  ...editFormData,
+                                  price: e.target.value,
+                                })
+                              }
+                              placeholder="Enter price"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="edit_description">
+                              Description
+                            </Label>
+                            <Input
+                              id="edit_description"
+                              value={editFormData.description}
+                              onChange={(e) =>
+                                setEditFormData({
+                                  ...editFormData,
+                                  description: e.target.value,
+                                })
+                              }
+                              placeholder="Enter description"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="edit_category">Category</Label>
+                            <Input
+                              id="edit_category"
+                              value={editFormData.category}
+                              onChange={(e) =>
+                                setEditFormData({
+                                  ...editFormData,
+                                  category: e.target.value,
+                                })
+                              }
+                              placeholder="Enter category"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="edit_size">Size</Label>
+                              <Input
+                                id="edit_size"
+                                value={editFormData.size}
+                                onChange={(e) =>
+                                  setEditFormData({
+                                    ...editFormData,
+                                    size: e.target.value,
+                                  })
+                                }
+                                placeholder="Enter size"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="edit_color">Color</Label>
+                              <Input
+                                id="edit_color"
+                                value={editFormData.color}
+                                onChange={(e) =>
+                                  setEditFormData({
+                                    ...editFormData,
+                                    color: e.target.value,
+                                  })
+                                }
+                                placeholder="Enter color"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <Label htmlFor="edit_stock">Stock Quantity</Label>
+                            <Input
+                              id="edit_stock"
+                              type="number"
+                              value={editFormData.stock}
+                              onChange={(e) =>
+                                setEditFormData({
+                                  ...editFormData,
+                                  stock: e.target.value,
+                                })
+                              }
+                              placeholder="Enter stock quantity"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="edit_imageUrl">
+                              Image URL (Optional)
+                            </Label>
+                            <Input
+                              id="edit_imageUrl"
+                              value={editFormData.imageUrl}
+                              onChange={(e) =>
+                                setEditFormData({
+                                  ...editFormData,
+                                  imageUrl: e.target.value,
+                                })
+                              }
+                              placeholder="Enter image URL"
+                            />
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button
+                            variant="outline"
+                            onClick={() => setIsEditDialogOpen(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button onClick={handleUpdateClothes}>
+                            Save Changes
                           </Button>
                         </DialogFooter>
                       </DialogContent>
@@ -299,16 +588,28 @@ export default function ClothesPage() {
                     <CardContent className="pt-6">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="text-center">
-                          <div className="text-2xl font-bold">{clothes.length}</div>
-                          <div className="text-sm text-muted-foreground">Total Items</div>
+                          <div className="text-2xl font-bold">
+                            {clothes.length}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Total Items
+                          </div>
                         </div>
                         <div className="text-center">
-                          <div className="text-2xl font-bold">{filteredAndSortedClothes.length}</div>
-                          <div className="text-sm text-muted-foreground">Filtered Items</div>
+                          <div className="text-2xl font-bold">
+                            {filteredAndSortedClothes.length}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Filtered Items
+                          </div>
                         </div>
                         <div className="text-center">
-                          <div className="text-2xl font-bold text-green-500">₵{totalValue.toFixed(2)}</div>
-                          <div className="text-sm text-muted-foreground">Total Value</div>
+                          <div className="text-2xl font-bold text-green-500">
+                            ₵{totalValue.toFixed(2)}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Total Value
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -318,7 +619,9 @@ export default function ClothesPage() {
                   <Card className="mb-6">
                     <CardHeader>
                       <CardTitle>Search & Filter</CardTitle>
-                      <CardDescription>Find specific clothes in your inventory</CardDescription>
+                      <CardDescription>
+                        Find specific clothes in your inventory
+                      </CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -331,15 +634,20 @@ export default function ClothesPage() {
                             className="pl-10"
                           />
                         </div>
-                        <Select value={filterCategory} onValueChange={setFilterCategory}>
+                        <Select
+                          value={filterCategory}
+                          onValueChange={setFilterCategory}
+                        >
                           <SelectTrigger>
                             <IconFilter className="h-4 w-4 mr-2" />
                             <SelectValue placeholder="Filter by category" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">All Categories</SelectItem>
-                            {categories.map(category => (
-                              <SelectItem key={category} value={category}>{category}</SelectItem>
+                            {categories.map((category) => (
+                              <SelectItem key={category} value={category}>
+                                {category}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -379,25 +687,48 @@ export default function ClothesPage() {
                         </div>
                         <CardContent className="p-4">
                           <div className="flex justify-between items-start mb-2">
-                            <h3 className="font-semibold text-sm line-clamp-2">{item.name}</h3>
-                            <span className="text-lg font-bold text-primary">₵{item.price}</span>
+                            <h3 className="font-semibold text-sm line-clamp-2">
+                              {item.name}
+                            </h3>
+                            <span className="text-lg font-bold text-primary">
+                              ₵{item.price}
+                            </span>
                           </div>
-                          <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{item.description}</p>
+                          <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
+                            {item.description}
+                          </p>
                           <div className="flex flex-wrap gap-1 mb-3">
-                            <Badge variant="outline" className="text-xs">{item.category}</Badge>
-                            <Badge variant="outline" className="text-xs">{item.size}</Badge>
-                            <Badge variant="outline" className="text-xs">{item.color}</Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {item.category}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {item.size}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {item.color}
+                            </Badge>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">Stock: {item.stock_quantity}</span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteClothes(item.id)}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <IconTrash className="h-4 w-4" />
-                            </Button>
+                            <span className="text-sm text-muted-foreground">
+                              Stock: {item.stock_quantity}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEditDialog(item)}
+                              >
+                                <IconEdit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteClothes(item.id)}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                <IconTrash className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -408,12 +739,13 @@ export default function ClothesPage() {
                     <Card>
                       <CardContent className="text-center py-12">
                         <IconEdit className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                        <h3 className="text-lg font-medium mb-2">No clothes found</h3>
+                        <h3 className="text-lg font-medium mb-2">
+                          No clothes found
+                        </h3>
                         <p className="text-muted-foreground mb-4">
-                          {searchTerm || filterCategory !== "all" 
-                            ? "Try adjusting your search or filter criteria" 
-                            : "Add your first clothing item to get started"
-                          }
+                          {searchTerm || filterCategory !== "all"
+                            ? "Try adjusting your search or filter criteria"
+                            : "Add your first clothing item to get started"}
                         </p>
                         {!searchTerm && filterCategory === "all" && (
                           <Button onClick={() => setIsAddDialogOpen(true)}>
@@ -431,5 +763,20 @@ export default function ClothesPage() {
         </SidebarInset>
       </SidebarProvider>
     </ProtectedRoute>
-  )
-} 
+  );
+}
+
+// Edit Dialog markup (placed near end for readability)
+// Note: Using existing Dialog components
+// Inject after the main return content if needed; for now, include below to keep file cohesive
+
+/* Edit Dialog */
+{
+  /* eslint-disable @typescript-eslint/no-unused-vars */
+}
+{
+  /* The dialog is controlled by isEditDialogOpen and editingProduct state above */
+}
+{
+  /* Render at root under ProtectedRoute to avoid layout clipping */
+}
