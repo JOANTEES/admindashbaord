@@ -1,41 +1,68 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { AppSidebar } from "@/components/app-sidebar";
+import { SiteHeader } from "@/components/site-header";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { IconPlus, IconSearch, IconFilter, IconSortAscending, IconSortDescending, IconUser, IconEdit, IconTrash, IconShield, IconLoader } from "@tabler/icons-react"
-import { ProtectedRoute } from "@/components/protected-route"
-import { apiClient } from "@/lib/api"
-import { toast } from "sonner"
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  IconPlus,
+  IconSearch,
+  IconFilter,
+  IconSortAscending,
+  IconSortDescending,
+  IconUser,
+  IconEdit,
+  IconTrash,
+  IconShield,
+  IconLoader,
+} from "@tabler/icons-react";
+import { ProtectedRoute } from "@/components/protected-route";
+import { apiClient } from "@/lib/api";
+import { toast } from "sonner";
 
 interface User {
-  id: string
-  name: string
-  email: string
-  phone: string
-  role: "admin" | "manager" | "staff" | "viewer" | "customer"
-  status: "active" | "inactive" | "suspended"
-  department: string
-  lastLogin: string
-  createdAt: string
-  permissions: string[]
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: "admin" | "manager" | "staff" | "viewer" | "customer";
+  status: "active" | "inactive" | "suspended";
+  department: string;
+  lastLogin: string;
+  createdAt: string;
+  permissions: string[];
 }
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -44,23 +71,25 @@ export default function UsersPage() {
     role: "customer",
     department: "",
     password: "",
-    confirmPassword: ""
-  })
+    confirmPassword: "",
+  });
 
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedRole, setSelectedRole] = useState("all")
-  const [selectedStatus, setSelectedStatus] = useState("all")
-  const [sortBy, setSortBy] = useState<"name" | "role" | "status" | "lastLogin">("name")
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedRole, setSelectedRole] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [sortBy, setSortBy] = useState<
+    "name" | "role" | "status" | "lastLogin"
+  >("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
 
   // Fetch users from backend
   const fetchUsers = useCallback(async () => {
     try {
-      setIsLoading(true)
-      const response = await apiClient.getUsers()
-      
+      setIsLoading(true);
+      const response = await apiClient.getUsers();
+
       if (response.data && response.data.users) {
         // Transform backend data to match frontend interface
         interface BackendUser {
@@ -75,112 +104,140 @@ export default function UsersPage() {
           last_login?: string;
           created_at?: string;
         }
-        
-        const transformedUsers = (response.data.users as unknown as BackendUser[]).map((user) => ({
+
+        const transformedUsers = (
+          response.data.users as unknown as BackendUser[]
+        ).map((user) => ({
           id: user.id,
           name: `${user.first_name} ${user.last_name}`,
           email: user.email,
-          phone: user.phone || '',
-          role: (user.role || 'customer') as "admin" | "manager" | "staff" | "viewer" | "customer",
-          status: (user.status || 'active') as "active" | "inactive" | "suspended",
-          department: user.department || 'General',
-          lastLogin: user.last_login || '',
+          phone: user.phone || "",
+          role: (user.role || "customer") as
+            | "admin"
+            | "manager"
+            | "staff"
+            | "viewer"
+            | "customer",
+          status: (user.status || "active") as
+            | "active"
+            | "inactive"
+            | "suspended",
+          department: user.department || "General",
+          lastLogin: user.last_login || "",
           createdAt: user.created_at || new Date().toISOString(),
-          permissions: getRolePermissions(user.role || 'customer')
-        }))
-        setUsers(transformedUsers)
+          permissions: getRolePermissions(user.role || "customer"),
+        }));
+        setUsers(transformedUsers);
       }
     } catch (error) {
-      console.error('Error fetching users:', error)
-      toast.error('Failed to load users')
+      console.error("Error fetching users:", error);
+      toast.error("Failed to load users");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    fetchUsers()
-  }, [fetchUsers])
+    fetchUsers();
+  }, [fetchUsers]);
 
   // Filter and sort users
   const filteredAndSortedUsers = useMemo(() => {
-    const filtered = users.filter(user => {
-      const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           user.department.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesRole = selectedRole === "all" || user.role === selectedRole
-      const matchesStatus = selectedStatus === "all" || user.status === selectedStatus
-      return matchesSearch && matchesRole && matchesStatus
-    })
+    const filtered = users.filter((user) => {
+      const matchesSearch =
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.department.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesRole = selectedRole === "all" || user.role === selectedRole;
+      const matchesStatus =
+        selectedStatus === "all" || user.status === selectedStatus;
+      return matchesSearch && matchesRole && matchesStatus;
+    });
 
     filtered.sort((a, b) => {
-      let aValue: string | number
-      let bValue: string | number
+      let aValue: string | number;
+      let bValue: string | number;
 
       switch (sortBy) {
         case "name":
-          aValue = a.name
-          bValue = b.name
-          break
+          aValue = a.name;
+          bValue = b.name;
+          break;
         case "role":
-          aValue = a.role
-          bValue = b.role
-          break
+          aValue = a.role;
+          bValue = b.role;
+          break;
         case "status":
-          aValue = a.status
-          bValue = b.status
-          break
+          aValue = a.status;
+          bValue = b.status;
+          break;
         case "lastLogin":
-          aValue = new Date(a.lastLogin).getTime()
-          bValue = new Date(b.lastLogin).getTime()
-          break
+          aValue = new Date(a.lastLogin).getTime();
+          bValue = new Date(b.lastLogin).getTime();
+          break;
         default:
-          aValue = a.name
-          bValue = b.name
+          aValue = a.name;
+          bValue = b.name;
       }
 
       if (sortOrder === "asc") {
-        return aValue > bValue ? 1 : -1
+        return aValue > bValue ? 1 : -1;
       } else {
-        return aValue < bValue ? 1 : -1
+        return aValue < bValue ? 1 : -1;
       }
-    })
+    });
 
-    return filtered
-  }, [users, searchTerm, selectedRole, selectedStatus, sortBy, sortOrder])
+    return filtered;
+  }, [users, searchTerm, selectedRole, selectedStatus, sortBy, sortOrder]);
 
-  const roles = ["admin", "manager", "staff", "viewer", "customer"]
-  const statuses = ["active", "inactive", "suspended"]
-  const departments = ["Management", "Operations", "Customer Service", "Marketing", "Finance", "IT", "Sales", "General"]
+  const roles = ["admin", "manager", "staff", "viewer", "customer"];
+  const statuses = ["active", "inactive", "suspended"];
+  const departments = [
+    "Management",
+    "Operations",
+    "Customer Service",
+    "Marketing",
+    "Finance",
+    "IT",
+    "Sales",
+    "General",
+  ];
 
   const getRolePermissions = (role: string) => {
     switch (role) {
       case "admin":
-        return ["all"]
+        return ["all"];
       case "manager":
-        return ["bookings", "users", "reports", "clothes"]
+        return ["bookings", "users", "reports", "clothes"];
       case "staff":
-        return ["bookings", "clothes"]
+        return ["bookings", "clothes"];
       case "viewer":
-        return ["reports"]
+        return ["reports"];
       case "customer":
-        return ["profile"]
+        return ["profile"];
       default:
-        return []
+        return [];
     }
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
-      toast.error("Please fill in all required fields")
-      return
+    e.preventDefault();
+
+    const isCreating = !editingUser;
+
+    if (
+      !formData.firstName ||
+      !formData.lastName ||
+      !formData.email ||
+      (isCreating && !formData.password)
+    ) {
+      toast.error("Please fill in all required fields");
+      return;
     }
 
-    if (formData.password !== formData.confirmPassword) {
-      toast.error("Passwords do not match")
-      return
+    if (isCreating && formData.password !== formData.confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
     }
 
     try {
@@ -190,12 +247,14 @@ export default function UsersPage() {
           first_name: formData.firstName,
           last_name: formData.lastName,
           email: formData.email,
-          role: formData.role
-        })
+          role: formData.role,
+          phone: formData.phone,
+          department: formData.department,
+        });
 
         if (response.data) {
-          toast.success("User updated successfully!")
-          fetchUsers() // Refresh the list
+          toast.success("User updated successfully!");
+          fetchUsers(); // Refresh the list
         }
       } else {
         // Create new user using registration endpoint
@@ -203,113 +262,122 @@ export default function UsersPage() {
           email: formData.email,
           password: formData.password,
           first_name: formData.firstName,
-          last_name: formData.lastName
-        })
+          last_name: formData.lastName,
+        });
 
         if (response.data) {
-          toast.success("User created successfully!")
-          fetchUsers() // Refresh the list
+          toast.success("User created successfully!");
+          fetchUsers(); // Refresh the list
         }
       }
 
-      setFormData({ firstName: "", lastName: "", email: "", phone: "", role: "customer", department: "", password: "", confirmPassword: "" })
-      setEditingUser(null)
-      setIsDialogOpen(false)
+      setFormData({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        role: "customer",
+        department: "",
+        password: "",
+        confirmPassword: "",
+      });
+      setEditingUser(null);
+      setIsDialogOpen(false);
     } catch (error) {
-      console.error('Error saving user:', error)
-      toast.error('Failed to save user')
+      console.error("Error saving user:", error);
+      toast.error("Failed to save user");
     }
-  }
+  };
 
   const handleEdit = (user: User) => {
-    const [firstName, ...lastNameParts] = user.name.split(' ')
-    const lastName = lastNameParts.join(' ')
-    
-    setEditingUser(user)
+    const [firstName, ...lastNameParts] = user.name.split(" ");
+    const lastName = lastNameParts.join(" ");
+
+    setEditingUser(user);
     setFormData({
-      firstName: firstName || '',
-      lastName: lastName || '',
+      firstName: firstName || "",
+      lastName: lastName || "",
       email: user.email,
       phone: user.phone,
       role: user.role,
       department: user.department,
       password: "",
-      confirmPassword: ""
-    })
-    setIsDialogOpen(true)
-  }
+      confirmPassword: "",
+    });
+    setIsDialogOpen(true);
+  };
 
   const handleStatusChange = async (id: string, newStatus: User["status"]) => {
     try {
-      const response = await apiClient.updateUserStatus(id, newStatus)
+      const response = await apiClient.updateUserStatus(id, newStatus);
       if (response.data) {
-        toast.success(`User status updated to ${newStatus}`)
-        fetchUsers() // Refresh the list
+        toast.success(`User status updated to ${newStatus}`);
+        fetchUsers(); // Refresh the list
       }
     } catch (error) {
-      console.error('Error updating user status:', error)
-      toast.error('Failed to update user status')
+      console.error("Error updating user status:", error);
+      toast.error("Failed to update user status");
     }
-  }
+  };
 
   const handleDelete = async (id: string) => {
     try {
-      const response = await apiClient.deleteUser(id)
+      const response = await apiClient.deleteUser(id);
       if (response.data) {
-        toast.success("User deleted successfully!")
-        fetchUsers() // Refresh the list
+        toast.success("User deleted successfully!");
+        fetchUsers(); // Refresh the list
       }
     } catch (error) {
-      console.error('Error deleting user:', error)
-      toast.error('Failed to delete user')
+      console.error("Error deleting user:", error);
+      toast.error("Failed to delete user");
     }
-  }
+  };
 
   const getRoleBadge = (role: string) => {
     switch (role) {
       case "admin":
-        return <Badge className="bg-red-500">Admin</Badge>
+        return <Badge className="bg-red-500">Admin</Badge>;
       case "manager":
-        return <Badge className="bg-blue-500">Manager</Badge>
+        return <Badge className="bg-blue-500">Manager</Badge>;
       case "staff":
-        return <Badge className="bg-green-500">Staff</Badge>
+        return <Badge className="bg-green-500">Staff</Badge>;
       case "viewer":
-        return <Badge className="bg-gray-500">Viewer</Badge>
+        return <Badge className="bg-gray-500">Viewer</Badge>;
       case "customer":
-        return <Badge className="bg-purple-500">Customer</Badge>
+        return <Badge className="bg-purple-500">Customer</Badge>;
       default:
-        return <Badge>{role}</Badge>
+        return <Badge>{role}</Badge>;
     }
-  }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "active":
-        return <Badge className="bg-green-500">Active</Badge>
+        return <Badge className="bg-green-500">Active</Badge>;
       case "inactive":
-        return <Badge className="bg-gray-500">Inactive</Badge>
+        return <Badge className="bg-gray-500">Inactive</Badge>;
       case "suspended":
-        return <Badge className="bg-red-500">Suspended</Badge>
+        return <Badge className="bg-red-500">Suspended</Badge>;
       default:
-        return <Badge>{status}</Badge>
+        return <Badge>{status}</Badge>;
     }
-  }
+  };
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return "Never"
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
+    if (!dateString) return "Never";
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
-  const totalUsers = users.length
-  const activeUsers = users.filter(u => u.status === "active").length
-  const adminUsers = users.filter(u => u.role === "admin").length
-  const staffUsers = users.filter(u => u.role === "staff").length
+  const totalUsers = users.length;
+  const activeUsers = users.filter((u) => u.status === "active").length;
+  const adminUsers = users.filter((u) => u.role === "admin").length;
+  const staffUsers = users.filter((u) => u.role === "staff").length;
 
   if (isLoading) {
     return (
@@ -342,7 +410,7 @@ export default function UsersPage() {
           </SidebarInset>
         </SidebarProvider>
       </ProtectedRoute>
-    )
+    );
   }
 
   return (
@@ -365,8 +433,12 @@ export default function UsersPage() {
                   {/* Header */}
                   <div className="flex justify-between items-center mb-6">
                     <div>
-                      <h1 className="text-3xl font-bold text-foreground">Users Manager</h1>
-                      <p className="text-muted-foreground mt-1">Manage system users and permissions</p>
+                      <h1 className="text-3xl font-bold text-foreground">
+                        Users Manager
+                      </h1>
+                      <p className="text-muted-foreground mt-1">
+                        Manage system users and permissions
+                      </p>
                     </div>
                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                       <DialogTrigger asChild>
@@ -377,7 +449,9 @@ export default function UsersPage() {
                       </DialogTrigger>
                       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
-                          <DialogTitle>{editingUser ? "Edit User" : "Add New User"}</DialogTitle>
+                          <DialogTitle>
+                            {editingUser ? "Edit User" : "Add New User"}
+                          </DialogTitle>
                         </DialogHeader>
                         <form onSubmit={handleSubmit} className="space-y-4">
                           <div className="grid grid-cols-2 gap-4">
@@ -386,7 +460,12 @@ export default function UsersPage() {
                               <Input
                                 id="firstName"
                                 value={formData.firstName}
-                                onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    firstName: e.target.value,
+                                  })
+                                }
                                 required
                               />
                             </div>
@@ -395,12 +474,17 @@ export default function UsersPage() {
                               <Input
                                 id="lastName"
                                 value={formData.lastName}
-                                onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    lastName: e.target.value,
+                                  })
+                                }
                                 required
                               />
                             </div>
                           </div>
-                          
+
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor="email">Email *</Label>
@@ -408,7 +492,12 @@ export default function UsersPage() {
                                 id="email"
                                 type="email"
                                 value={formData.email}
-                                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    email: e.target.value,
+                                  })
+                                }
                                 required
                               />
                             </div>
@@ -417,7 +506,12 @@ export default function UsersPage() {
                               <Input
                                 id="phone"
                                 value={formData.phone}
-                                onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    phone: e.target.value,
+                                  })
+                                }
                               />
                             </div>
                           </div>
@@ -425,26 +519,44 @@ export default function UsersPage() {
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor="role">Role *</Label>
-                              <Select value={formData.role} onValueChange={(value) => setFormData({...formData, role: value})}>
+                              <Select
+                                value={formData.role}
+                                onValueChange={(value) =>
+                                  setFormData({ ...formData, role: value })
+                                }
+                              >
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select role" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {roles.map(role => (
-                                    <SelectItem key={role} value={role}>{role.charAt(0).toUpperCase() + role.slice(1)}</SelectItem>
+                                  {roles.map((role) => (
+                                    <SelectItem key={role} value={role}>
+                                      {role.charAt(0).toUpperCase() +
+                                        role.slice(1)}
+                                    </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
                             </div>
                             <div className="space-y-2">
                               <Label htmlFor="department">Department</Label>
-                              <Select value={formData.department} onValueChange={(value) => setFormData({...formData, department: value})}>
+                              <Select
+                                value={formData.department}
+                                onValueChange={(value) =>
+                                  setFormData({
+                                    ...formData,
+                                    department: value,
+                                  })
+                                }
+                              >
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select department" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {departments.map(dept => (
-                                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                                  {departments.map((dept) => (
+                                    <SelectItem key={dept} value={dept}>
+                                      {dept}
+                                    </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
@@ -459,17 +571,29 @@ export default function UsersPage() {
                                   id="password"
                                   type="password"
                                   value={formData.password}
-                                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      password: e.target.value,
+                                    })
+                                  }
                                   required
                                 />
                               </div>
                               <div className="space-y-2">
-                                <Label htmlFor="confirmPassword">Confirm Password *</Label>
+                                <Label htmlFor="confirmPassword">
+                                  Confirm Password *
+                                </Label>
                                 <Input
                                   id="confirmPassword"
                                   type="password"
                                   value={formData.confirmPassword}
-                                  onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      confirmPassword: e.target.value,
+                                    })
+                                  }
                                   required
                                 />
                               </div>
@@ -480,11 +604,24 @@ export default function UsersPage() {
                             <Button type="submit" className="flex-1">
                               {editingUser ? "Update User" : "Add User"}
                             </Button>
-                            <Button type="button" variant="outline" onClick={() => {
-                              setIsDialogOpen(false)
-                              setEditingUser(null)
-                              setFormData({ firstName: "", lastName: "", email: "", phone: "", role: "customer", department: "", password: "", confirmPassword: "" })
-                            }}>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setIsDialogOpen(false);
+                                setEditingUser(null);
+                                setFormData({
+                                  firstName: "",
+                                  lastName: "",
+                                  email: "",
+                                  phone: "",
+                                  role: "customer",
+                                  department: "",
+                                  password: "",
+                                  confirmPassword: "",
+                                });
+                              }}
+                            >
                               Cancel
                             </Button>
                           </div>
@@ -497,42 +634,64 @@ export default function UsersPage() {
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                     <Card>
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                        <CardTitle className="text-sm font-medium">
+                          Total Users
+                        </CardTitle>
                         <IconUser className="h-4 w-4 text-muted-foreground" />
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold">{totalUsers}</div>
-                        <p className="text-xs text-muted-foreground">registered users</p>
+                        <p className="text-xs text-muted-foreground">
+                          registered users
+                        </p>
                       </CardContent>
                     </Card>
                     <Card>
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+                        <CardTitle className="text-sm font-medium">
+                          Active Users
+                        </CardTitle>
                         <IconUser className="h-4 w-4 text-green-500" />
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-bold text-green-500">{activeUsers}</div>
-                        <p className="text-xs text-muted-foreground">active accounts</p>
+                        <div className="text-2xl font-bold text-green-500">
+                          {activeUsers}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          active accounts
+                        </p>
                       </CardContent>
                     </Card>
                     <Card>
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Admins</CardTitle>
+                        <CardTitle className="text-sm font-medium">
+                          Admins
+                        </CardTitle>
                         <IconShield className="h-4 w-4 text-red-500" />
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-bold text-red-500">{adminUsers}</div>
-                        <p className="text-xs text-muted-foreground">administrators</p>
+                        <div className="text-2xl font-bold text-red-500">
+                          {adminUsers}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          administrators
+                        </p>
                       </CardContent>
                     </Card>
                     <Card>
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Staff</CardTitle>
+                        <CardTitle className="text-sm font-medium">
+                          Staff
+                        </CardTitle>
                         <IconUser className="h-4 w-4 text-blue-500" />
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-bold text-blue-500">{staffUsers}</div>
-                        <p className="text-xs text-muted-foreground">staff members</p>
+                        <div className="text-2xl font-bold text-blue-500">
+                          {staffUsers}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          staff members
+                        </p>
                       </CardContent>
                     </Card>
                   </div>
@@ -548,32 +707,47 @@ export default function UsersPage() {
                         className="pl-10"
                       />
                     </div>
-                    <Select value={selectedRole} onValueChange={setSelectedRole}>
+                    <Select
+                      value={selectedRole}
+                      onValueChange={setSelectedRole}
+                    >
                       <SelectTrigger className="w-full sm:w-[150px]">
                         <IconFilter className="h-4 w-4 mr-2" />
                         <SelectValue placeholder="All Roles" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Roles</SelectItem>
-                        {roles.map(role => (
-                          <SelectItem key={role} value={role}>{role.charAt(0).toUpperCase() + role.slice(1)}</SelectItem>
+                        {roles.map((role) => (
+                          <SelectItem key={role} value={role}>
+                            {role.charAt(0).toUpperCase() + role.slice(1)}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                    <Select
+                      value={selectedStatus}
+                      onValueChange={setSelectedStatus}
+                    >
                       <SelectTrigger className="w-full sm:w-[150px]">
                         <IconFilter className="h-4 w-4 mr-2" />
                         <SelectValue placeholder="All Status" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Status</SelectItem>
-                        {statuses.map(status => (
-                          <SelectItem key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</SelectItem>
+                        {statuses.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status.charAt(0).toUpperCase() + status.slice(1)}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                     <div className="flex gap-2">
-                      <Select value={sortBy} onValueChange={(value: "name" | "role" | "status" | "lastLogin") => setSortBy(value)}>
+                      <Select
+                        value={sortBy}
+                        onValueChange={(
+                          value: "name" | "role" | "status" | "lastLogin"
+                        ) => setSortBy(value)}
+                      >
                         <SelectTrigger className="w-full sm:w-[140px]">
                           <IconSortAscending className="h-4 w-4 mr-2" />
                           <SelectValue />
@@ -588,9 +762,15 @@ export default function UsersPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                        onClick={() =>
+                          setSortOrder(sortOrder === "asc" ? "desc" : "asc")
+                        }
                       >
-                        {sortOrder === "asc" ? <IconSortAscending className="h-4 w-4" /> : <IconSortDescending className="h-4 w-4" />}
+                        {sortOrder === "asc" ? (
+                          <IconSortAscending className="h-4 w-4" />
+                        ) : (
+                          <IconSortDescending className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -618,40 +798,65 @@ export default function UsersPage() {
                               <TableCell>
                                 <div>
                                   <div className="font-medium">{user.name}</div>
-                                  <div className="text-sm text-muted-foreground">{user.email}</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {user.email}
+                                  </div>
                                   {user.phone && (
-                                    <div className="text-sm text-muted-foreground">{user.phone}</div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {user.phone}
+                                    </div>
                                   )}
                                 </div>
                               </TableCell>
                               <TableCell>{getRoleBadge(user.role)}</TableCell>
                               <TableCell>
-                                <div className="text-sm text-muted-foreground">{user.department}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  {user.department}
+                                </div>
                               </TableCell>
-                              <TableCell>{getStatusBadge(user.status)}</TableCell>
                               <TableCell>
-                                <div className="text-sm text-muted-foreground">{formatDate(user.lastLogin)}</div>
+                                {getStatusBadge(user.status)}
+                              </TableCell>
+                              <TableCell>
+                                <div className="text-sm text-muted-foreground">
+                                  {formatDate(user.lastLogin)}
+                                </div>
                               </TableCell>
                               <TableCell>
                                 <div className="flex gap-2">
-                                  <Button variant="outline" size="sm" onClick={() => handleEdit(user)}>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleEdit(user)}
+                                  >
                                     <IconEdit className="h-4 w-4" />
                                   </Button>
                                   {user.status !== "suspended" && (
-                                    <Select value={user.status} onValueChange={(value: User["status"]) => handleStatusChange(user.id, value)}>
+                                    <Select
+                                      value={user.status}
+                                      onValueChange={(value: User["status"]) =>
+                                        handleStatusChange(user.id, value)
+                                      }
+                                    >
                                       <SelectTrigger className="w-[100px] h-8">
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        {statuses.map(status => (
-                                          <SelectItem key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</SelectItem>
+                                        {statuses.map((status) => (
+                                          <SelectItem
+                                            key={status}
+                                            value={status}
+                                          >
+                                            {status.charAt(0).toUpperCase() +
+                                              status.slice(1)}
+                                          </SelectItem>
                                         ))}
                                       </SelectContent>
                                     </Select>
                                   )}
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
                                     onClick={() => handleDelete(user.id)}
                                     className="text-red-600 hover:text-red-700"
                                   >
@@ -669,8 +874,12 @@ export default function UsersPage() {
                   {filteredAndSortedUsers.length === 0 && (
                     <div className="text-center py-12">
                       <IconUser className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-muted-foreground mb-2">No users found</h3>
-                      <p className="text-muted-foreground">Try adjusting your search or filters</p>
+                      <h3 className="text-lg font-semibold text-muted-foreground mb-2">
+                        No users found
+                      </h3>
+                      <p className="text-muted-foreground">
+                        Try adjusting your search or filters
+                      </p>
                     </div>
                   )}
                 </div>
@@ -680,5 +889,5 @@ export default function UsersPage() {
         </SidebarInset>
       </SidebarProvider>
     </ProtectedRoute>
-  )
-} 
+  );
+}

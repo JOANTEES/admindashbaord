@@ -352,21 +352,35 @@ class ApiClient {
   }
 
   async updateUser(
-    _id: string,
+    id: string,
     userData: {
       first_name?: string;
       last_name?: string;
       email?: string;
       role?: string;
+      phone?: string;
+      department?: string;
+      is_active?: boolean;
     }
   ) {
-    // TODO: Replace with real PUT /users/:id endpoint when available
-    return {
-      data: {
-        message: "User updated successfully (mock)",
-        user: { id: _id, ...userData },
-      },
+    const payload: Record<string, unknown> = {
+      first_name: userData.first_name,
+      last_name: userData.last_name,
+      email: userData.email,
+      role: userData.role,
+      phone: userData.phone,
+      department: userData.department,
+      is_active: userData.is_active,
     };
+
+    Object.keys(payload).forEach((key) => {
+      if (payload[key] === undefined) delete payload[key];
+    });
+
+    return this.request(`/users/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
