@@ -178,12 +178,93 @@ router.put(
       });
     } catch (error) {
       console.error("Error updating user:", error);
-      return res
-        .status(500)
-        .json({
-          message: "Server error while updating user",
-          error: error.message,
-        });
+      return res.status(500).json({
+        message: "Server error while updating user",
+        error: error.message,
+      });
     }
   }
 );
+
+// Delete user (admin only)
+router.delete("/:id", adminAuth, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    if (isNaN(userId)) {
+      return res
+        .status(400)
+        .json({ message: "Invalid user ID. Must be a number." });
+    }
+
+    const existing = await pool.query("SELECT id FROM users WHERE id = $1", [
+      userId,
+    ]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Soft delete by marking inactive
+    const result = await pool.query(
+      "UPDATE users SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING id, is_active",
+      [userId]
+    );
+
+    return res.json({
+      message: "User deactivated successfully",
+      user: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    return res
+      .status(500)
+      .json({
+        message: "Server error while deleting user",
+        error: error.message,
+      });
+  }
+});
+
+// Update user status (admin only)
+router.patch("/:id/status", adminAuth, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    if (isNaN(userId)) {
+      return res
+        .status(400)
+        .json({ message: "Invalid user ID. Must be a number." });
+    }
+
+    const { status } = req.body; // expected 'active' | 'inactive' | 'suspended'
+    if (!status || !["active", "inactive", "suspended"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status value" });
+    }
+
+    // Map status to is_active flag; keep status string in future if needed
+    const isActive = status === "active";
+
+    const existing = await pool.query("SELECT id FROM users WHERE id = $1", [
+      userId,
+    ]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const result = await pool.query(
+      "UPDATE users SET is_active = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, is_active",
+      [isActive, userId]
+    );
+
+    return res.json({
+      message: "User status updated successfully",
+      user: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Error updating user status:", error);
+    return res
+      .status(500)
+      .json({
+        message: "Server error while updating user status",
+        error: error.message,
+      });
+  }
+});

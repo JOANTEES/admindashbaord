@@ -110,7 +110,7 @@ export default function UsersPage() {
         email: string;
         phone?: string;
         role?: string;
-        status?: string;
+        is_active?: boolean;
         department?: string;
         last_login?: string;
         created_at?: string;
@@ -129,7 +129,7 @@ export default function UsersPage() {
             | "staff"
             | "viewer"
             | "customer",
-          status: (user.status || "active") as
+          status: (user.is_active === false ? "inactive" : "active") as
             | "active"
             | "inactive"
             | "suspended",

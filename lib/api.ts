@@ -385,12 +385,9 @@ class ApiClient {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async deleteUser(_id: string) {
-    // TODO: Replace with real DELETE /users/:id endpoint when available
-    return {
-      data: {
-        message: "User deleted successfully (mock)",
-      },
-    };
+    return this.request(`/users/${_id}`, {
+      method: "DELETE",
+    });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -398,12 +395,10 @@ class ApiClient {
     _id: string,
     _status: "active" | "inactive" | "suspended"
   ) {
-    // TODO: Replace with real PATCH /users/:id/status endpoint when available
-    return {
-      data: {
-        message: "User status updated successfully (mock)",
-      },
-    };
+    return this.request(`/users/${_id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: _status }),
+    });
   }
 
   // Payments endpoints - these don't exist yet
