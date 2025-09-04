@@ -103,6 +103,10 @@ class ApiClient {
     return this.request("/products");
   }
 
+  async getProductById(id: string | number) {
+    return this.request(`/products/${id}`);
+  }
+
   // TODO: Admin endpoints - these don't exist in your backend yet
   // For now, return mock data or empty responses
   async getDashboardStats() {

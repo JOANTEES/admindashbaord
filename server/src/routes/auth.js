@@ -140,6 +140,12 @@ router.post(
         { expiresIn: "24h" }
       );
 
+      // Update last_login timestamp
+      await pool.query(
+        "UPDATE users SET last_login = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+        [user.rows[0].id]
+      );
+
       res.json({
         message: "Login successful",
         user: {

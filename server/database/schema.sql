@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS users (
     last_name VARCHAR(100) NOT NULL,
     role VARCHAR(20) DEFAULT 'customer' CHECK (role IN ('admin', 'customer')),
     is_active BOOLEAN DEFAULT true,
+    phone VARCHAR(30),
+    department VARCHAR(100),
+    last_login TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

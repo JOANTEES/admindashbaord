@@ -15,7 +15,7 @@ const pool = new Pool({
 router.get("/", adminAuth, async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT id, email, first_name, last_name, role, is_active, created_at, updated_at FROM users ORDER BY created_at DESC"
+      "SELECT id, email, first_name, last_name, role, is_active, phone, department, last_login, created_at, updated_at FROM users ORDER BY created_at DESC"
     );
 
     res.json({
@@ -44,7 +44,7 @@ router.get("/:id", adminAuth, async (req, res) => {
     }
 
     const result = await pool.query(
-      "SELECT id, email, first_name, last_name, role, is_active, created_at, updated_at FROM users WHERE id = $1",
+      "SELECT id, email, first_name, last_name, role, is_active, phone, department, last_login, created_at, updated_at FROM users WHERE id = $1",
       [userId]
     );
 
