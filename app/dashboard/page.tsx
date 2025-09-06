@@ -80,14 +80,51 @@ export default function DashboardPage() {
 
       // Fetch dashboard stats
       const statsResponse = await apiClient.getDashboardStats();
-      if (statsResponse.data && statsResponse.data.stats) {
-        setStats(statsResponse.data.stats);
+      const statsData = statsResponse.data as {
+        stats?: {
+          totalVisitors: number;
+          totalPurchases: number;
+          totalUsers: number;
+          totalBookings: number;
+          totalClothes: number;
+          activeAdmins: number;
+        };
+      };
+      if (statsData && statsData.stats) {
+        setStats({
+          totalVisitors: statsData.stats.totalVisitors,
+          totalPurchases: statsData.stats.totalPurchases,
+          totalUsers: statsData.stats.totalUsers,
+          totalBookings: statsData.stats.totalBookings,
+          totalClothes: statsData.stats.totalClothes,
+          activeAdmins: statsData.stats.activeAdmins,
+        });
       }
 
       // Fetch admins
       const adminsResponse = await apiClient.getAdmins();
-      if (adminsResponse.data && adminsResponse.data.admins) {
-        setAdmins(adminsResponse.data.admins);
+      const adminsData = adminsResponse.data as {
+        admins?: Array<{
+          id: string;
+          name: string;
+          email: string;
+          phone: string;
+          role: string;
+          status: string;
+          createdAt: string;
+        }>;
+      };
+      if (adminsData && adminsData.admins) {
+        const transformedAdmins: Admin[] = adminsData.admins.map((admin) => ({
+          id: admin.id,
+          name: admin.name,
+          email: admin.email,
+          phone: admin.phone,
+          role: admin.role as "super_admin" | "admin" | "moderator",
+          status: admin.status as "active" | "inactive",
+          createdAt: admin.createdAt,
+        }));
+        setAdmins(transformedAdmins);
       }
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -183,42 +220,42 @@ export default function DashboardPage() {
   const statsData = [
     {
       title: "Total Visitors",
-      value: stats.totalVisitors.toLocaleString(),
+      value: stats?.totalVisitors?.toLocaleString() || "0",
       icon: IconUsers,
       description: "Total website visitors",
       trend: "+12% from last month",
     },
     {
       title: "Total Purchases",
-      value: stats.totalPurchases.toLocaleString(),
+      value: stats?.totalPurchases?.toLocaleString() || "0",
       icon: IconShoppingCart,
       description: "Total orders placed",
       trend: "+8% from last month",
     },
     {
       title: "Total Users",
-      value: stats.totalUsers.toLocaleString(),
+      value: stats?.totalUsers?.toLocaleString() || "0",
       icon: IconUserCheck,
       description: "Registered users",
       trend: "+15% from last month",
     },
     {
       title: "Total Bookings",
-      value: stats.totalBookings.toLocaleString(),
+      value: stats?.totalBookings?.toLocaleString() || "0",
       icon: IconCalendar,
       description: "Event bookings",
       trend: "+5% from last month",
     },
     {
       title: "Total Clothes",
-      value: stats.totalClothes.toLocaleString(),
+      value: stats?.totalClothes?.toLocaleString() || "0",
       icon: IconPackage,
       description: "Products in inventory",
       trend: "+3% from last month",
     },
     {
       title: "Active Admins",
-      value: stats.activeAdmins.toLocaleString(),
+      value: stats?.activeAdmins?.toLocaleString() || "0",
       icon: IconUsers,
       description: "Active administrators",
       trend: "No change",

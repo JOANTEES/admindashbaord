@@ -215,10 +215,22 @@ class ApiClient {
       method: "DELETE",
     });
 
+    const responseData = response.data as {
+      user?: {
+        id: number;
+        first_name: string;
+        last_name: string;
+        email: string;
+        role: string;
+        is_active: boolean;
+        created_at: string;
+        updated_at: string;
+      };
+    };
     return {
       data: {
         message: "Admin deleted successfully",
-        user: response.data.user,
+        user: responseData.user,
       },
     };
   }

@@ -96,7 +96,27 @@ export default function BookingsPage() {
     const load = async () => {
       try {
         const res = await apiClient.getBookings();
-        const payload = res.data as { bookings?: any[] };
+        const payload = res.data as {
+          bookings?: Array<{
+            id: number;
+            name: string;
+            email: string;
+            phone: string;
+            event_title: string;
+            event_type: string;
+            date: string;
+            time: string;
+            duration: number;
+            location: string;
+            price: number;
+            status: string;
+            payment_status: string;
+            notes: string;
+            paid_total: number;
+            created_at: string;
+            updated_at: string;
+          }>;
+        };
         if (payload.bookings) {
           const transformed: Booking[] = payload.bookings.map((b) => ({
             id: String(b.id),
@@ -113,8 +133,12 @@ export default function BookingsPage() {
             duration: b.duration ?? undefined,
             location: b.location || "",
             price: Number(b.price),
-            status: b.status,
-            paymentStatus: b.payment_status,
+            status: b.status as
+              | "confirmed"
+              | "pending"
+              | "cancelled"
+              | "completed",
+            paymentStatus: b.payment_status as "paid" | "pending" | "partial",
             paidTotal: Number(b.paid_total ?? 0),
             notes: b.notes || "",
             createdAt: b.created_at,
@@ -228,7 +252,27 @@ export default function BookingsPage() {
         price: parseFloat(formData.price),
         notes: formData.notes || undefined,
       });
-      const payload = res.data as { booking?: any };
+      const payload = res.data as {
+        booking?: {
+          id: number;
+          name: string;
+          email: string;
+          phone: string;
+          event_title: string;
+          event_type: string;
+          date: string;
+          time: string;
+          duration: number;
+          location: string;
+          price: number;
+          status: string;
+          payment_status: string;
+          notes: string;
+          paid_total: number;
+          created_at: string;
+          updated_at: string;
+        };
+      };
       if (payload.booking) {
         const b = payload.booking;
         const newBooking: Booking = {
@@ -246,8 +290,12 @@ export default function BookingsPage() {
           duration: b.duration ?? undefined,
           location: b.location || "",
           price: Number(b.price),
-          status: b.status,
-          paymentStatus: b.payment_status,
+          status: b.status as
+            | "confirmed"
+            | "pending"
+            | "cancelled"
+            | "completed",
+          paymentStatus: b.payment_status as "paid" | "pending" | "partial",
           notes: b.notes || "",
           createdAt: b.created_at,
         };
