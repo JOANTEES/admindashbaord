@@ -1,23 +1,51 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
+import { useState, useEffect } from "react";
+import { AppSidebar } from "@/components/app-sidebar";
+import { SiteHeader } from "@/components/site-header";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
-import { IconUsers, IconShoppingCart, IconCalendar, IconPackage, IconUserCheck, IconPlus, IconTrash, IconToggleRight, IconToggleLeft, IconLoader } from "@tabler/icons-react"
-import { apiClient, Admin, DashboardStats } from "@/lib/api"
-import { toast } from "sonner"
-import { ProtectedRoute } from "@/components/protected-route"
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import {
+  IconUsers,
+  IconShoppingCart,
+  IconCalendar,
+  IconPackage,
+  IconUserCheck,
+  IconPlus,
+  IconTrash,
+  IconToggleRight,
+  IconToggleLeft,
+  IconLoader,
+} from "@tabler/icons-react";
+import { apiClient, Admin, DashboardStats } from "@/lib/api";
+import { toast } from "sonner";
+import { ProtectedRoute } from "@/components/protected-route";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({
@@ -26,153 +54,213 @@ export default function DashboardPage() {
     totalUsers: 0,
     totalBookings: 0,
     totalClothes: 0,
-    activeAdmins: 0
-  })
-  const [admins, setAdmins] = useState<Admin[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+    activeAdmins: 0,
+  });
+  const [admins, setAdmins] = useState<Admin[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isAddingAdmin, setIsAddingAdmin] = useState(false);
+  const [isDeletingAdmin, setIsDeletingAdmin] = useState<string | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
     role: "admin" as "admin" | "moderator",
-    password: ""
-  })
+    password: "",
+  });
 
   useEffect(() => {
-    fetchDashboardData()
-  }, [])
+    fetchDashboardData();
+  }, []);
 
   const fetchDashboardData = async () => {
     try {
-      setIsLoading(true)
-      
+      setIsLoading(true);
+
       // Fetch dashboard stats
-      const statsResponse = await apiClient.getDashboardStats()
-      if (statsResponse.data && statsResponse.data.stats) {
-        setStats(statsResponse.data.stats)
+      const statsResponse = await apiClient.getDashboardStats();
+      const statsData = statsResponse.data as {
+        stats?: {
+          totalVisitors: number;
+          totalPurchases: number;
+          totalUsers: number;
+          totalBookings: number;
+          totalClothes: number;
+          activeAdmins: number;
+        };
+      };
+      if (statsData && statsData.stats) {
+        setStats({
+          totalVisitors: statsData.stats.totalVisitors,
+          totalPurchases: statsData.stats.totalPurchases,
+          totalUsers: statsData.stats.totalUsers,
+          totalBookings: statsData.stats.totalBookings,
+          totalClothes: statsData.stats.totalClothes,
+          activeAdmins: statsData.stats.activeAdmins,
+        });
       }
 
       // Fetch admins
-      const adminsResponse = await apiClient.getAdmins()
-      if (adminsResponse.data && adminsResponse.data.admins) {
-        setAdmins(adminsResponse.data.admins)
+      const adminsResponse = await apiClient.getAdmins();
+      const adminsData = adminsResponse.data as {
+        admins?: Array<{
+          id: string;
+          name: string;
+          email: string;
+          phone: string;
+          role: string;
+          status: string;
+          createdAt: string;
+        }>;
+      };
+      if (adminsData && adminsData.admins) {
+        const transformedAdmins: Admin[] = adminsData.admins.map((admin) => ({
+          id: admin.id,
+          name: admin.name,
+          email: admin.email,
+          phone: admin.phone,
+          role: admin.role as "super_admin" | "admin" | "moderator",
+          status: admin.status as "active" | "inactive",
+          createdAt: admin.createdAt,
+        }));
+        setAdmins(transformedAdmins);
       }
     } catch (error) {
-      console.error('Error fetching dashboard data:', error)
-      toast.error('Failed to load dashboard data')
+      console.error("Error fetching dashboard data:", error);
+      toast.error("Failed to load dashboard data");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleAddAdmin = async () => {
     try {
-      const response = await apiClient.addAdmin(formData)
+      setIsAddingAdmin(true);
+      const response = await apiClient.addAdmin(formData);
       if (response.data) {
-        toast.success('Admin added successfully')
-        setIsAddDialogOpen(false)
-        setFormData({ name: "", email: "", phone: "", role: "admin", password: "" })
-        fetchDashboardData() // Refresh the list
+        toast.success("Admin added successfully");
+        setIsAddDialogOpen(false);
+        setFormData({
+          name: "",
+          email: "",
+          phone: "",
+          role: "admin",
+          password: "",
+        });
+        fetchDashboardData(); // Refresh the list
       }
     } catch (error) {
-      console.error('Error adding admin:', error)
-      toast.error('Failed to add admin')
+      console.error("Error adding admin:", error);
+      toast.error("Failed to add admin");
+    } finally {
+      setIsAddingAdmin(false);
     }
-  }
+  };
 
   const handleDeleteAdmin = async (id: string) => {
     try {
-      const response = await apiClient.deleteAdmin(id)
+      setIsDeletingAdmin(id);
+      const response = await apiClient.deleteAdmin(id);
       if (response.data) {
-        toast.success('Admin deleted successfully')
-        fetchDashboardData() // Refresh the list
+        toast.success("Admin deleted successfully");
+        fetchDashboardData(); // Refresh the list
       }
     } catch (error) {
-      console.error('Error deleting admin:', error)
-      toast.error('Failed to delete admin')
+      console.error("Error deleting admin:", error);
+      toast.error("Failed to delete admin");
+    } finally {
+      setIsDeletingAdmin(null);
     }
-  }
+  };
 
-  const handleToggleStatus = async (id: string, currentStatus: 'active' | 'inactive') => {
+  const handleToggleStatus = async (
+    id: string,
+    currentStatus: "active" | "inactive"
+  ) => {
     try {
-      const newStatus = currentStatus === 'active' ? 'inactive' : 'active'
-      const response = await apiClient.updateAdminStatus(id, newStatus)
+      setIsUpdatingStatus(id);
+      const newStatus = currentStatus === "active" ? "inactive" : "active";
+      const response = await apiClient.updateAdminStatus(id, newStatus);
       if (response.data) {
-        toast.success(`Admin status updated to ${newStatus}`)
-        fetchDashboardData() // Refresh the list
+        toast.success(`Admin status updated to ${newStatus}`);
+        fetchDashboardData(); // Refresh the list
       }
     } catch (error) {
-      console.error('Error updating admin status:', error)
-      toast.error('Failed to update admin status')
+      console.error("Error updating admin status:", error);
+      toast.error("Failed to update admin status");
+    } finally {
+      setIsUpdatingStatus(null);
     }
-  }
+  };
 
   const getRoleBadge = (role: string) => {
     switch (role) {
-      case 'super_admin':
-        return <Badge variant="destructive">Super Admin</Badge>
-      case 'admin':
-        return <Badge variant="default">Admin</Badge>
-      case 'moderator':
-        return <Badge variant="secondary">Moderator</Badge>
+      case "super_admin":
+        return <Badge variant="destructive">Super Admin</Badge>;
+      case "admin":
+        return <Badge variant="default">Admin</Badge>;
+      case "moderator":
+        return <Badge variant="secondary">Moderator</Badge>;
       default:
-        return <Badge variant="outline">{role}</Badge>
+        return <Badge variant="outline">{role}</Badge>;
     }
-  }
+  };
 
   const getStatusBadge = (status: string) => {
-    return status === 'active' ? (
-      <Badge variant="default" className="bg-green-500">Active</Badge>
+    return status === "active" ? (
+      <Badge variant="default" className="bg-green-500">
+        Active
+      </Badge>
     ) : (
       <Badge variant="secondary">Inactive</Badge>
-    )
-  }
+    );
+  };
 
   const statsData = [
     {
       title: "Total Visitors",
-      value: stats.totalVisitors.toLocaleString(),
+      value: stats?.totalVisitors?.toLocaleString() || "0",
       icon: IconUsers,
       description: "Total website visitors",
-      trend: "+12% from last month"
+      trend: "+12% from last month",
     },
     {
       title: "Total Purchases",
-      value: stats.totalPurchases.toLocaleString(),
+      value: stats?.totalPurchases?.toLocaleString() || "0",
       icon: IconShoppingCart,
       description: "Total orders placed",
-      trend: "+8% from last month"
+      trend: "+8% from last month",
     },
     {
       title: "Total Users",
-      value: stats.totalUsers.toLocaleString(),
+      value: stats?.totalUsers?.toLocaleString() || "0",
       icon: IconUserCheck,
       description: "Registered users",
-      trend: "+15% from last month"
+      trend: "+15% from last month",
     },
     {
       title: "Total Bookings",
-      value: stats.totalBookings.toLocaleString(),
+      value: stats?.totalBookings?.toLocaleString() || "0",
       icon: IconCalendar,
       description: "Event bookings",
-      trend: "+5% from last month"
+      trend: "+5% from last month",
     },
     {
       title: "Total Clothes",
-      value: stats.totalClothes.toLocaleString(),
+      value: stats?.totalClothes?.toLocaleString() || "0",
       icon: IconPackage,
       description: "Products in inventory",
-      trend: "+3% from last month"
+      trend: "+3% from last month",
     },
     {
       title: "Active Admins",
-      value: stats.activeAdmins.toLocaleString(),
+      value: stats?.activeAdmins?.toLocaleString() || "0",
       icon: IconUsers,
       description: "Active administrators",
-      trend: "No change"
-    }
-  ]
+      trend: "No change",
+    },
+  ];
 
   if (isLoading) {
     return (
@@ -205,7 +293,7 @@ export default function DashboardPage() {
           </SidebarInset>
         </SidebarProvider>
       </ProtectedRoute>
-    )
+    );
   }
 
   return (
@@ -227,8 +315,12 @@ export default function DashboardPage() {
                 <div className="px-4 lg:px-6">
                   <div className="flex justify-between items-center mb-6">
                     <div>
-                      <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-                      <p className="text-muted-foreground">Welcome to your admin dashboard</p>
+                      <h1 className="text-3xl font-bold text-foreground">
+                        Dashboard
+                      </h1>
+                      <p className="text-muted-foreground">
+                        Welcome to your admin dashboard
+                      </p>
                     </div>
                   </div>
 
@@ -237,13 +329,19 @@ export default function DashboardPage() {
                     {statsData.map((stat, index) => (
                       <Card key={index}>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                          <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                          <CardTitle className="text-sm font-medium">
+                            {stat.title}
+                          </CardTitle>
                           <stat.icon className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
                           <div className="text-2xl font-bold">{stat.value}</div>
-                          <p className="text-xs text-muted-foreground">{stat.description}</p>
-                          <p className="text-xs text-green-600 mt-1">{stat.trend}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {stat.description}
+                          </p>
+                          <p className="text-xs text-green-600 mt-1">
+                            {stat.trend}
+                          </p>
                         </CardContent>
                       </Card>
                     ))}
@@ -255,9 +353,14 @@ export default function DashboardPage() {
                       <div className="flex justify-between items-center">
                         <div>
                           <CardTitle>Admin Management</CardTitle>
-                          <CardDescription>Manage your admin users and their permissions</CardDescription>
+                          <CardDescription>
+                            Manage your admin users and their permissions
+                          </CardDescription>
                         </div>
-                        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                        <Dialog
+                          open={isAddDialogOpen}
+                          onOpenChange={setIsAddDialogOpen}
+                        >
                           <DialogTrigger asChild>
                             <Button>
                               <IconPlus className="h-4 w-4 mr-2" />
@@ -268,7 +371,8 @@ export default function DashboardPage() {
                             <DialogHeader>
                               <DialogTitle>Add New Admin</DialogTitle>
                               <DialogDescription>
-                                Create a new admin account with specific permissions.
+                                Create a new admin account with specific
+                                permissions.
                               </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4">
@@ -277,7 +381,12 @@ export default function DashboardPage() {
                                 <Input
                                   id="name"
                                   value={formData.name}
-                                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      name: e.target.value,
+                                    })
+                                  }
                                   placeholder="Enter full name"
                                 />
                               </div>
@@ -287,7 +396,12 @@ export default function DashboardPage() {
                                   id="email"
                                   type="email"
                                   value={formData.email}
-                                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      email: e.target.value,
+                                    })
+                                  }
                                   placeholder="Enter email address"
                                 />
                               </div>
@@ -296,19 +410,33 @@ export default function DashboardPage() {
                                 <Input
                                   id="phone"
                                   value={formData.phone}
-                                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      phone: e.target.value,
+                                    })
+                                  }
                                   placeholder="Enter phone number"
                                 />
                               </div>
                               <div>
                                 <Label htmlFor="role">Role</Label>
-                                <Select value={formData.role} onValueChange={(value: "admin" | "moderator") => setFormData({ ...formData, role: value })}>
+                                <Select
+                                  value={formData.role}
+                                  onValueChange={(
+                                    value: "admin" | "moderator"
+                                  ) =>
+                                    setFormData({ ...formData, role: value })
+                                  }
+                                >
                                   <SelectTrigger>
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="admin">Admin</SelectItem>
-                                    <SelectItem value="moderator">Moderator</SelectItem>
+                                    <SelectItem value="moderator">
+                                      Moderator
+                                    </SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
@@ -318,17 +446,35 @@ export default function DashboardPage() {
                                   id="password"
                                   type="password"
                                   value={formData.password}
-                                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      password: e.target.value,
+                                    })
+                                  }
                                   placeholder="Enter password"
                                 />
                               </div>
                             </div>
                             <DialogFooter>
-                              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                              <Button
+                                variant="outline"
+                                onClick={() => setIsAddDialogOpen(false)}
+                              >
                                 Cancel
                               </Button>
-                              <Button onClick={handleAddAdmin}>
-                                Add Admin
+                              <Button
+                                onClick={handleAddAdmin}
+                                disabled={isAddingAdmin}
+                              >
+                                {isAddingAdmin ? (
+                                  <>
+                                    <IconLoader className="h-4 w-4 mr-2 animate-spin" />
+                                    Adding...
+                                  </>
+                                ) : (
+                                  "Add Admin"
+                                )}
                               </Button>
                             </DialogFooter>
                           </DialogContent>
@@ -339,8 +485,12 @@ export default function DashboardPage() {
                       {admins.length === 0 ? (
                         <div className="text-center py-8">
                           <IconUsers className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                          <h3 className="text-lg font-medium mb-2">No admins found</h3>
-                          <p className="text-muted-foreground mb-4">Add your first admin to get started</p>
+                          <h3 className="text-lg font-medium mb-2">
+                            No admins found
+                          </h3>
+                          <p className="text-muted-foreground mb-4">
+                            Add your first admin to get started
+                          </p>
                           <Button onClick={() => setIsAddDialogOpen(true)}>
                             <IconPlus className="h-4 w-4 mr-2" />
                             Add Admin
@@ -349,15 +499,22 @@ export default function DashboardPage() {
                       ) : (
                         <div className="space-y-4">
                           {admins.map((admin) => (
-                            <div key={admin.id} className="flex items-center justify-between p-4 border rounded-lg">
+                            <div
+                              key={admin.id}
+                              className="flex items-center justify-between p-4 border rounded-lg"
+                            >
                               <div className="flex items-center space-x-4">
                                 <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
                                   <IconUsers className="h-5 w-5 text-primary-foreground" />
                                 </div>
                                 <div>
                                   <h4 className="font-medium">{admin.name}</h4>
-                                  <p className="text-sm text-muted-foreground">{admin.email}</p>
-                                  <p className="text-sm text-muted-foreground">{admin.phone}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {admin.email}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {admin.phone}
+                                  </p>
                                 </div>
                               </div>
                               <div className="flex items-center space-x-2">
@@ -366,9 +523,14 @@ export default function DashboardPage() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleToggleStatus(admin.id, admin.status)}
+                                  onClick={() =>
+                                    handleToggleStatus(admin.id, admin.status)
+                                  }
+                                  disabled={isUpdatingStatus === admin.id}
                                 >
-                                  {admin.status === 'active' ? (
+                                  {isUpdatingStatus === admin.id ? (
+                                    <IconLoader className="h-4 w-4 animate-spin" />
+                                  ) : admin.status === "active" ? (
                                     <IconToggleRight className="h-4 w-4" />
                                   ) : (
                                     <IconToggleLeft className="h-4 w-4" />
@@ -378,9 +540,14 @@ export default function DashboardPage() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleDeleteAdmin(admin.id)}
+                                  disabled={isDeletingAdmin === admin.id}
                                   className="text-red-500 hover:text-red-700"
                                 >
-                                  <IconTrash className="h-4 w-4" />
+                                  {isDeletingAdmin === admin.id ? (
+                                    <IconLoader className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <IconTrash className="h-4 w-4" />
+                                  )}
                                 </Button>
                               </div>
                             </div>
@@ -396,5 +563,5 @@ export default function DashboardPage() {
         </SidebarInset>
       </SidebarProvider>
     </ProtectedRoute>
-  )
-} 
+  );
+}
