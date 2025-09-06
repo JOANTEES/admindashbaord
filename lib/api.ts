@@ -114,29 +114,38 @@ class ApiClient {
   }
 
   async getAdmins() {
-    // Return mock data since this endpoint doesn't exist
+    // Get all users and filter for admins
+    const response = await this.request("/users");
+    const data = response.data as {
+      users?: Array<{
+        id: string;
+        first_name: string;
+        last_name: string;
+        email: string;
+        phone?: string;
+        role: string;
+        is_active: boolean;
+        created_at: string;
+      }>;
+    };
+    const users = data.users || [];
+
+    // Filter for admin role users and transform to admin format
+    const admins = users
+      .filter((user) => user.role === "admin")
+      .map((user) => ({
+        id: user.id,
+        name: `${user.first_name} ${user.last_name}`,
+        email: user.email,
+        phone: user.phone || "",
+        role: user.role,
+        status: user.is_active ? "active" : "inactive",
+        createdAt: user.created_at,
+      }));
+
     return {
       data: {
-        admins: [
-          {
-            id: "1",
-            name: "John Doe",
-            email: "john@example.com",
-            phone: "+233 20 123 4567",
-            role: "admin" as const,
-            status: "active" as const,
-            createdAt: "2024-01-01T00:00:00.000Z",
-          },
-          {
-            id: "2",
-            name: "Jane Smith",
-            email: "jane@example.com",
-            phone: "+233 24 987 6543",
-            role: "moderator" as const,
-            status: "active" as const,
-            createdAt: "2024-01-15T00:00:00.000Z",
-          },
-        ],
+        admins,
       },
     };
   }
@@ -148,13 +157,35 @@ class ApiClient {
     role: "admin" | "moderator";
     password: string;
   }) {
-    // Mock response since this endpoint doesn't exist
+    // Split name into first and last name
+    const nameParts = adminData.name.split(" ");
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+
+    // Use the register endpoint to create a new admin user
+    const response = await this.request("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        first_name: firstName,
+        last_name: lastName,
+        email: adminData.email,
+        password: adminData.password,
+        role: adminData.role === "moderator" ? "customer" : "admin", // Map moderator to customer for now
+        phone: adminData.phone,
+        department: "Administration",
+      }),
+    });
+
+    const responseData = response.data as { user?: { id: string } };
     return {
       data: {
-        message: "Admin added successfully (mock)",
+        message: "Admin added successfully",
         admin: {
-          id: "3",
-          ...adminData,
+          id: responseData.user?.id || "",
+          name: adminData.name,
+          email: adminData.email,
+          phone: adminData.phone,
+          role: adminData.role,
           status: "active",
           createdAt: new Date().toISOString(),
         },
@@ -162,22 +193,32 @@ class ApiClient {
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async updateAdminStatus(_id: string, _status: "active" | "inactive") {
-    // Mock response since this endpoint doesn't exist
+  async updateAdminStatus(id: string, status: "active" | "inactive") {
+    // Use the user status update endpoint
+    await this.request(`/users/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        status: status, // Backend expects 'status' field, not 'is_active'
+      }),
+    });
+
     return {
       data: {
-        message: "Admin status updated successfully (mock)",
+        message: "Admin status updated successfully",
       },
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async deleteAdmin(_id: string) {
-    // Mock response since this endpoint doesn't exist
+  async deleteAdmin(id: string) {
+    // Use the user delete endpoint
+    const response = await this.request(`/users/${id}`, {
+      method: "DELETE",
+    });
+
     return {
       data: {
-        message: "Admin deleted successfully (mock)",
+        message: "Admin deleted successfully",
+        user: response.data.user,
       },
     };
   }
@@ -348,7 +389,8 @@ class ApiClient {
     };
 
     Object.keys(payload).forEach((key) => {
-      if (payload[key] === undefined) delete payload[key];
+      if (payload[key] === undefined || payload[key] === "")
+        delete payload[key];
     });
 
     return this.request(`/users/${id}`, {
@@ -357,14 +399,12 @@ class ApiClient {
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async deleteUser(_id: string) {
     return this.request(`/users/${_id}`, {
       method: "DELETE",
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async updateUserStatus(
     _id: string,
     _status: "active" | "inactive" | "suspended"

@@ -66,6 +66,11 @@ export default function ClothesPage() {
     imageUrl: "",
   });
   const [formFile, setFormFile] = useState<File | null>(null);
+  const [isAddingClothes, setIsAddingClothes] = useState(false);
+  const [isUpdatingClothes, setIsUpdatingClothes] = useState(false);
+  const [isDeletingClothes, setIsDeletingClothes] = useState<number | null>(
+    null
+  );
 
   const [editFormData, setEditFormData] = useState({
     title: "",
@@ -112,6 +117,7 @@ export default function ClothesPage() {
 
   const handleAddClothes = async () => {
     try {
+      setIsAddingClothes(true);
       let imageUrl: string | undefined = formData.imageUrl || undefined;
       if (!imageUrl && formFile) {
         // Upload to Supabase Storage on submit
@@ -160,17 +166,22 @@ export default function ClothesPage() {
     } catch (error) {
       console.error("Error adding clothes:", error);
       toast.error("Failed to add clothes");
+    } finally {
+      setIsAddingClothes(false);
     }
   };
 
   const handleDeleteClothes = async (id: number) => {
     try {
+      setIsDeletingClothes(id);
       await apiClient.deleteProduct(id);
       toast.success("Clothes deleted successfully");
       fetchClothes(); // Refresh the list
     } catch (error) {
       console.error("Error deleting clothes:", error);
       toast.error("Failed to delete clothes");
+    } finally {
+      setIsDeletingClothes(null);
     }
   };
 
@@ -192,6 +203,7 @@ export default function ClothesPage() {
   const handleUpdateClothes = async () => {
     if (!editingProduct) return;
     try {
+      setIsUpdatingClothes(true);
       let imageUrl: string | undefined = editFormData.imageUrl || undefined;
       if (editFormFile) {
         const ext = editFormFile.name.split(".").pop() || "jpg";
@@ -224,6 +236,8 @@ export default function ClothesPage() {
     } catch (error) {
       console.error("Error updating clothes:", error);
       toast.error("Failed to update clothes");
+    } finally {
+      setIsUpdatingClothes(false);
     }
   };
 
@@ -477,8 +491,18 @@ export default function ClothesPage() {
                           >
                             Cancel
                           </Button>
-                          <Button onClick={handleAddClothes}>
-                            Add Clothes
+                          <Button
+                            onClick={handleAddClothes}
+                            disabled={isAddingClothes}
+                          >
+                            {isAddingClothes ? (
+                              <>
+                                <IconLoader className="h-4 w-4 mr-2 animate-spin" />
+                                Adding...
+                              </>
+                            ) : (
+                              "Add Clothes"
+                            )}
                           </Button>
                         </DialogFooter>
                       </DialogContent>
@@ -640,8 +664,18 @@ export default function ClothesPage() {
                           >
                             Cancel
                           </Button>
-                          <Button onClick={handleUpdateClothes}>
-                            Save Changes
+                          <Button
+                            onClick={handleUpdateClothes}
+                            disabled={isUpdatingClothes}
+                          >
+                            {isUpdatingClothes ? (
+                              <>
+                                <IconLoader className="h-4 w-4 mr-2 animate-spin" />
+                                Updating...
+                              </>
+                            ) : (
+                              "Save Changes"
+                            )}
                           </Button>
                         </DialogFooter>
                       </DialogContent>
@@ -789,9 +823,14 @@ export default function ClothesPage() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDeleteClothes(item.id)}
+                                disabled={isDeletingClothes === item.id}
                                 className="text-red-500 hover:text-red-700"
                               >
-                                <IconTrash className="h-4 w-4" />
+                                {isDeletingClothes === item.id ? (
+                                  <IconLoader className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <IconTrash className="h-4 w-4" />
+                                )}
                               </Button>
                             </div>
                           </div>
@@ -836,9 +875,6 @@ export default function ClothesPage() {
 // Inject after the main return content if needed; for now, include below to keep file cohesive
 
 /* Edit Dialog */
-{
-  /* eslint-disable @typescript-eslint/no-unused-vars */
-}
 {
   /* The dialog is controlled by isEditDialogOpen and editingProduct state above */
 }
