@@ -247,10 +247,10 @@ export default function DashboardPage() {
       trend: "+5% from last month",
     },
     {
-      title: "Total Clothes",
+      title: "Total Products",
       value: stats?.totalClothes?.toLocaleString() || "0",
       icon: IconPackage,
-      description: "Products in inventory",
+      description: "Total products in inventory",
       trend: "+3% from last month",
     },
     {

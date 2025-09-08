@@ -42,6 +42,7 @@ class ApiClient {
       method?: string;
       body?: string;
       headers?: Record<string, string>;
+      responseType?: string;
     } = {}
   ): Promise<{ data: T; error?: string }> {
     try {
@@ -66,12 +67,50 @@ class ApiClient {
         return { data: {} as T, error: errorData };
       }
 
+      // Handle different response types
+      if (options.responseType === 'blob') {
+        const blob = await response.blob();
+        return { data: blob as T };
+      }
+
       const data = await response.json();
       return { data };
     } catch (error) {
       console.error("API request failed:", error);
       return { data: {} as T, error: "Network error" };
     }
+  }
+
+  // Public HTTP methods for general use
+  async get<T = unknown>(endpoint: string, options?: { headers?: Record<string, string>; responseType?: string }) {
+    return this.request<T>(endpoint, {
+      method: "GET",
+      headers: options?.headers,
+      responseType: options?.responseType,
+    });
+  }
+
+  async post<T = unknown>(endpoint: string, data?: unknown, options?: { headers?: Record<string, string> }) {
+    return this.request<T>(endpoint, {
+      method: "POST",
+      body: data ? JSON.stringify(data) : undefined,
+      headers: options?.headers,
+    });
+  }
+
+  async put<T = unknown>(endpoint: string, data?: unknown, options?: { headers?: Record<string, string> }) {
+    return this.request<T>(endpoint, {
+      method: "PUT",
+      body: data ? JSON.stringify(data) : undefined,
+      headers: options?.headers,
+    });
+  }
+
+  async delete<T = unknown>(endpoint: string, options?: { headers?: Record<string, string> }) {
+    return this.request<T>(endpoint, {
+      method: "DELETE",
+      headers: options?.headers,
+    });
   }
 
   // Authentication endpoints

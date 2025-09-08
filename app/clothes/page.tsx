@@ -121,6 +121,10 @@ export default function ClothesPage() {
       let imageUrl: string | undefined = formData.imageUrl || undefined;
       if (!imageUrl && formFile) {
         // Upload to Supabase Storage on submit
+        if (!supabase) {
+          toast.error("Image upload not available - Supabase not configured");
+          return;
+        }
         const ext = formFile.name.split(".").pop() || "jpg";
         const path = `images/${crypto.randomUUID()}.${ext}`;
         const { error: uploadError } = await supabase.storage
@@ -206,6 +210,10 @@ export default function ClothesPage() {
       setIsUpdatingClothes(true);
       let imageUrl: string | undefined = editFormData.imageUrl || undefined;
       if (editFormFile) {
+        if (!supabase) {
+          toast.error("Image upload not available - Supabase not configured");
+          return;
+        }
         const ext = editFormFile.name.split(".").pop() || "jpg";
         const path = `images/${crypto.randomUUID()}.${ext}`;
         const { error: uploadError } = await supabase.storage

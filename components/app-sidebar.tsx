@@ -11,11 +11,11 @@ import {
   IconSearch,
   IconUsers,
   IconCreditCard,
+  IconUsersGroup,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
-import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
   SidebarContent,
@@ -28,11 +28,6 @@ import {
 import Image from "next/image"
 
 const data = {
-  user: {
-    name: "Admin",
-    email: "admin@example.com",
-    avatar: "/avatars/admin.jpg",
-  },
   navMain: [
     {
       title: "Dashboard",
@@ -53,6 +48,11 @@ const data = {
       title: "Users",
       url: "/users",
       icon: IconUsers,
+    },
+    {
+      title: "Customers",
+      url: "/customers",
+      icon: IconUsersGroup,
     },
     {
       title: "Payments",
@@ -121,7 +121,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        {/* User dropdown removed */}
       </SidebarFooter>
     </Sidebar>
   )
