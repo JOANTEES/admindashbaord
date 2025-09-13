@@ -64,6 +64,7 @@ export default function ClothesPage() {
     color: "",
     stock: "",
     imageUrl: "",
+    requiresSpecialDelivery: false,
   });
   const [formFile, setFormFile] = useState<File | null>(null);
   const [isAddingClothes, setIsAddingClothes] = useState(false);
@@ -81,6 +82,7 @@ export default function ClothesPage() {
     color: "",
     stock: "",
     imageUrl: "",
+    requiresSpecialDelivery: false,
   });
   const [editFormFile, setEditFormFile] = useState<File | null>(null);
 
@@ -149,6 +151,7 @@ export default function ClothesPage() {
         color: formData.color,
         stock: parseInt(formData.stock),
         imageUrl,
+        requiresSpecialDelivery: formData.requiresSpecialDelivery,
       });
 
       if (response.data) {
@@ -163,6 +166,7 @@ export default function ClothesPage() {
           color: "",
           stock: "",
           imageUrl: "",
+          requiresSpecialDelivery: false,
         });
         setFormFile(null);
         fetchClothes(); // Refresh the list
@@ -200,6 +204,7 @@ export default function ClothesPage() {
       color: item.color || "",
       stock: String(item.stock_quantity ?? ""),
       imageUrl: item.image_url || "",
+      requiresSpecialDelivery: item.requires_special_delivery || false,
     });
     setIsEditDialogOpen(true);
   };
@@ -235,6 +240,7 @@ export default function ClothesPage() {
         color: editFormData.color,
         stock: parseInt(editFormData.stock),
         imageUrl,
+        requiresSpecialDelivery: editFormData.requiresSpecialDelivery,
       });
       toast.success("Clothes updated successfully");
       setIsEditDialogOpen(false);
@@ -462,6 +468,26 @@ export default function ClothesPage() {
                               placeholder="Enter stock quantity"
                             />
                           </div>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id="requiresSpecialDelivery"
+                              checked={formData.requiresSpecialDelivery}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  requiresSpecialDelivery: e.target.checked,
+                                })
+                              }
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <Label
+                              htmlFor="requiresSpecialDelivery"
+                              className="text-sm"
+                            >
+                              Requires Special Delivery
+                            </Label>
+                          </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <Label htmlFor="imageUrl">
@@ -632,6 +658,26 @@ export default function ClothesPage() {
                               }
                               placeholder="Enter stock quantity"
                             />
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id="edit_requiresSpecialDelivery"
+                              checked={editFormData.requiresSpecialDelivery}
+                              onChange={(e) =>
+                                setEditFormData({
+                                  ...editFormData,
+                                  requiresSpecialDelivery: e.target.checked,
+                                })
+                              }
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <Label
+                              htmlFor="edit_requiresSpecialDelivery"
+                              className="text-sm"
+                            >
+                              Requires Special Delivery
+                            </Label>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -814,6 +860,14 @@ export default function ClothesPage() {
                             <Badge variant="outline" className="text-xs">
                               {item.color}
                             </Badge>
+                            {item.requires_special_delivery && (
+                              <Badge
+                                variant="outline"
+                                className="text-xs bg-orange-100 text-orange-700 border-orange-200"
+                              >
+                                Special Delivery
+                              </Badge>
+                            )}
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-sm text-muted-foreground">

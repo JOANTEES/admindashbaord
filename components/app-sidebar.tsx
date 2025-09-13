@@ -13,6 +13,7 @@ import {
   IconCreditCard,
   IconUsersGroup,
   IconMapPin,
+  IconPackage,
 } from "@tabler/icons-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -64,6 +65,16 @@ const data = {
       title: "Delivery Zones",
       url: "/delivery-zones",
       icon: IconMapPin,
+    },
+    {
+      title: "Orders",
+      url: "/orders",
+      icon: IconPackage,
+    },
+    {
+      title: "Settings",
+      url: "/settings",
+      icon: IconSettings,
     },
     {
       title: "Site Editor",

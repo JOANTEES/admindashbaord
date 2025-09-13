@@ -302,6 +302,7 @@ class ApiClient {
     size: string;
     color: string;
     stock: number;
+    requiresSpecialDelivery?: boolean;
   }) {
     // Map frontend fields to backend schema
     const payload = {
@@ -313,6 +314,7 @@ class ApiClient {
       color: productData.color,
       stock_quantity: productData.stock,
       image_url: productData.imageUrl,
+      requires_special_delivery: productData.requiresSpecialDelivery || false,
     } as Record<string, unknown>;
 
     // Remove undefined to avoid validation issues
@@ -339,6 +341,7 @@ class ApiClient {
       color: string;
       stock: number;
       imageUrl?: string;
+      requiresSpecialDelivery?: boolean;
     }>
   ) {
     const payload = {
@@ -350,6 +353,7 @@ class ApiClient {
       color: updates.color,
       stock_quantity: updates.stock,
       image_url: updates.imageUrl,
+      requires_special_delivery: updates.requiresSpecialDelivery,
     } as Record<string, unknown>;
 
     Object.keys(payload).forEach((key) => {
@@ -557,6 +561,26 @@ class ApiClient {
   async getAdminDeliveryZones() {
     return this.request("/delivery-zones/admin");
   }
+
+  // App Settings API methods
+  async getAppSettings() {
+    return this.request("/admin/settings");
+  }
+
+  async updateAppSettings(data: {
+    taxRate?: number;
+    freeShippingThreshold?: number;
+    largeOrderQuantityThreshold?: number;
+    largeOrderDeliveryFee?: number;
+    pickupAddress?: string;
+    currencySymbol?: string;
+    currencyCode?: string;
+  }) {
+    return this.request("/admin/settings", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
@@ -658,5 +682,7 @@ export interface Product {
   color: string;
   stock_quantity: number;
   image_url: string | null;
+  is_active: boolean;
+  requires_special_delivery: boolean;
   created_at: string;
 }
