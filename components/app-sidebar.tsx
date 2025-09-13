@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 import {
   IconDashboard,
   IconShirt,
@@ -12,10 +12,11 @@ import {
   IconUsers,
   IconCreditCard,
   IconUsersGroup,
-} from "@tabler/icons-react"
+  IconMapPin,
+} from "@tabler/icons-react";
 
-import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
+import { NavMain } from "@/components/nav-main";
+import { NavSecondary } from "@/components/nav-secondary";
 import {
   Sidebar,
   SidebarContent,
@@ -24,8 +25,8 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar"
-import Image from "next/image"
+} from "@/components/ui/sidebar";
+import Image from "next/image";
 
 const data = {
   navMain: [
@@ -60,6 +61,11 @@ const data = {
       icon: IconCreditCard,
     },
     {
+      title: "Delivery Zones",
+      url: "/delivery-zones",
+      icon: IconMapPin,
+    },
+    {
       title: "Site Editor",
       url: "/site-editor",
       icon: IconEdit,
@@ -82,7 +88,7 @@ const data = {
       icon: IconSearch,
     },
   ],
-}
+};
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
@@ -120,9 +126,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={data.navMain} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
-      <SidebarFooter>
-        {/* User dropdown removed */}
-      </SidebarFooter>
+      <SidebarFooter>{/* User dropdown removed */}</SidebarFooter>
     </Sidebar>
-  )
+  );
 }

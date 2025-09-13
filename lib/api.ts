@@ -68,7 +68,7 @@ class ApiClient {
       }
 
       // Handle different response types
-      if (options.responseType === 'blob') {
+      if (options.responseType === "blob") {
         const blob = await response.blob();
         return { data: blob as T };
       }
@@ -82,7 +82,10 @@ class ApiClient {
   }
 
   // Public HTTP methods for general use
-  async get<T = unknown>(endpoint: string, options?: { headers?: Record<string, string>; responseType?: string }) {
+  async get<T = unknown>(
+    endpoint: string,
+    options?: { headers?: Record<string, string>; responseType?: string }
+  ) {
     return this.request<T>(endpoint, {
       method: "GET",
       headers: options?.headers,
@@ -90,7 +93,11 @@ class ApiClient {
     });
   }
 
-  async post<T = unknown>(endpoint: string, data?: unknown, options?: { headers?: Record<string, string> }) {
+  async post<T = unknown>(
+    endpoint: string,
+    data?: unknown,
+    options?: { headers?: Record<string, string> }
+  ) {
     return this.request<T>(endpoint, {
       method: "POST",
       body: data ? JSON.stringify(data) : undefined,
@@ -98,7 +105,11 @@ class ApiClient {
     });
   }
 
-  async put<T = unknown>(endpoint: string, data?: unknown, options?: { headers?: Record<string, string> }) {
+  async put<T = unknown>(
+    endpoint: string,
+    data?: unknown,
+    options?: { headers?: Record<string, string> }
+  ) {
     return this.request<T>(endpoint, {
       method: "PUT",
       body: data ? JSON.stringify(data) : undefined,
@@ -106,7 +117,10 @@ class ApiClient {
     });
   }
 
-  async delete<T = unknown>(endpoint: string, options?: { headers?: Record<string, string> }) {
+  async delete<T = unknown>(
+    endpoint: string,
+    options?: { headers?: Record<string, string> }
+  ) {
     return this.request<T>(endpoint, {
       method: "DELETE",
       headers: options?.headers,
@@ -494,9 +508,57 @@ class ApiClient {
       body: JSON.stringify({ status }),
     });
   }
+
+  // Delivery Zones API methods
+  async getDeliveryZones() {
+    return this.request("/delivery-zones");
+  }
+
+  async getDeliveryZone(id: string) {
+    return this.request(`/delivery-zones/${id}`);
+  }
+
+  async createDeliveryZone(data: {
+    name: string;
+    description: string;
+    deliveryFee: number;
+    estimatedDays: string;
+    coverageAreas: string[];
+  }) {
+    return this.request("/delivery-zones", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateDeliveryZone(
+    id: string,
+    data: {
+      name?: string;
+      description?: string;
+      deliveryFee?: number;
+      estimatedDays?: string;
+      coverageAreas?: string[];
+      isActive?: boolean;
+    }
+  ) {
+    return this.request(`/delivery-zones/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteDeliveryZone(id: string) {
+    return this.request(`/delivery-zones/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getAdminDeliveryZones() {
+    return this.request("/delivery-zones/admin");
+  }
 }
 
-// Create and export a singleton instance
 export const apiClient = new ApiClient(API_BASE_URL);
 
 // Export types for better TypeScript support
@@ -571,6 +633,18 @@ export interface DashboardStats {
   totalBookings: number;
   totalClothes: number;
   activeAdmins: number;
+}
+
+export interface DeliveryZone {
+  id: string;
+  name: string;
+  description: string;
+  deliveryFee: number;
+  estimatedDays: string;
+  coverageAreas: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 // Backend Product interface (matches your actual backend response)
