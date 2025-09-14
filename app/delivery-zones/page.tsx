@@ -17,6 +17,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -46,7 +53,18 @@ import {
   IconToggleLeft,
 } from "@tabler/icons-react";
 import { ProtectedRoute } from "@/components/protected-route";
-import { apiClient, DeliveryZone } from "@/lib/api";
+import {
+  apiClient,
+  DeliveryZone,
+  GhanaRegion,
+  GhanaCity,
+  DeliveryZoneArea,
+  GhanaRegionsResponse,
+  GhanaCitiesResponse,
+  DeliveryZonesResponse,
+  DeliveryZoneAreasResponse,
+  AddAreaResponse,
+} from "@/lib/api";
 import { toast } from "sonner";
 
 export default function DeliveryZonesPage() {
@@ -59,6 +77,11 @@ export default function DeliveryZonesPage() {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isToggling, setIsToggling] = useState<string | null>(null);
 
+  // Ghana locations data
+  const [regions, setRegions] = useState<GhanaRegion[]>([]);
+  const [cities, setCities] = useState<GhanaCity[]>([]);
+  const [selectedRegionId, setSelectedRegionId] = useState<number | null>(null);
+
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -67,22 +90,173 @@ export default function DeliveryZonesPage() {
     coverageAreas: "",
   });
 
+  // Structured area management
+  const [zoneAreas, setZoneAreas] = useState<DeliveryZoneArea[]>([]);
+  const [newArea, setNewArea] = useState({
+    regionId: "",
+    cityId: "",
+    areaName: "",
+  });
+
   useEffect(() => {
     fetchZones();
+    fetchGhanaRegions();
   }, []);
+
+  const fetchGhanaRegions = async () => {
+    try {
+      const response = await apiClient.getGhanaRegions();
+      const data = response.data as GhanaRegionsResponse;
+      if (data && data.regions) {
+        setRegions(data.regions);
+      }
+    } catch (error) {
+      console.error("Error fetching Ghana regions:", error);
+    }
+  };
+
+  const fetchGhanaCities = async (regionId: number) => {
+    try {
+      const response = await apiClient.getGhanaCities(regionId);
+      const data = response.data as GhanaCitiesResponse;
+      if (data && data.cities) {
+        setCities(data.cities);
+      }
+    } catch (error) {
+      console.error("Error fetching Ghana cities:", error);
+    }
+  };
+
+  const handleRegionChange = (regionId: string) => {
+    const regionIdNum = parseInt(regionId);
+    setSelectedRegionId(regionIdNum);
+    setNewArea({ ...newArea, regionId, cityId: "", areaName: "" });
+    if (regionIdNum) {
+      fetchGhanaCities(regionIdNum);
+    } else {
+      setCities([]);
+    }
+  };
+
+  const addArea = async () => {
+    if (newArea.regionId && newArea.cityId && newArea.areaName) {
+      if (editingZone) {
+        // Editing existing zone - add to backend
+        try {
+          const response = await apiClient.addAreaToDeliveryZone(
+            editingZone.id,
+            {
+              regionId: parseInt(newArea.regionId),
+              cityId: parseInt(newArea.cityId),
+              areaName: newArea.areaName,
+            }
+          );
+
+          const data = response.data as AddAreaResponse;
+          if (data && data.area) {
+            const region = regions.find(
+              (r) => r.id === parseInt(newArea.regionId)
+            );
+            const city = cities.find((c) => c.id === parseInt(newArea.cityId));
+
+            const newAreaData: DeliveryZoneArea = {
+              id: data.area.id,
+              delivery_zone_id: parseInt(editingZone.id),
+              region_id: parseInt(newArea.regionId),
+              city_id: parseInt(newArea.cityId),
+              area_name: newArea.areaName,
+              region_name: region?.name,
+              city_name: city?.name,
+            };
+
+            setZoneAreas([...zoneAreas, newAreaData]);
+            setNewArea({ regionId: "", cityId: "", areaName: "" });
+            setSelectedRegionId(null);
+            setCities([]);
+            toast.success("Area added successfully");
+
+            // Refresh the zones list to show updated coverageAreas
+            fetchZones();
+          }
+        } catch (error) {
+          console.error("Error adding area:", error);
+          toast.error("Failed to add area");
+        }
+      } else {
+        // Creating new zone - add to local state only
+        const region = regions.find((r) => r.id === parseInt(newArea.regionId));
+        const city = cities.find((c) => c.id === parseInt(newArea.cityId));
+
+        const newAreaData: DeliveryZoneArea = {
+          id: Date.now(), // Temporary ID for frontend
+          delivery_zone_id: 0, // Will be set when zone is created
+          region_id: parseInt(newArea.regionId),
+          city_id: parseInt(newArea.cityId),
+          area_name: newArea.areaName,
+          region_name: region?.name,
+          city_name: city?.name,
+        };
+
+        setZoneAreas([...zoneAreas, newAreaData]);
+        setNewArea({ regionId: "", cityId: "", areaName: "" });
+        setSelectedRegionId(null);
+        setCities([]);
+        toast.success("Area added to new zone");
+      }
+    }
+  };
+
+  const removeArea = async (areaId: number) => {
+    if (editingZone) {
+      try {
+        await apiClient.removeAreaFromDeliveryZone(
+          editingZone.id,
+          areaId.toString()
+        );
+        setZoneAreas(zoneAreas.filter((area) => area.id !== areaId));
+        toast.success("Area removed successfully");
+
+        // Refresh the zones list to show updated coverageAreas
+        fetchZones();
+      } catch (error) {
+        console.error("Error removing area:", error);
+        toast.error("Failed to remove area");
+      }
+    }
+  };
 
   const fetchZones = async () => {
     try {
       setIsLoading(true);
       // Try the regular delivery zones endpoint first (public)
       const response = await apiClient.getDeliveryZones();
-      console.log("Delivery zones response:", response);
 
-      if (response.data && response.data.zones) {
-        setZones(response.data.zones);
+      const data = response.data as DeliveryZonesResponse;
+      if (data && data.zones) {
+        // Process zones to ensure coverageAreas is populated from structuredAreas
+        const processedZones = data.zones.map((zone) => {
+          if (zone.structuredAreas && zone.structuredAreas.length > 0) {
+            // If structuredAreas exist but coverageAreas is empty, populate it
+            if (!zone.coverageAreas || zone.coverageAreas.length === 0) {
+              // Try different possible property names for area name
+              zone.coverageAreas = zone.structuredAreas.map((area) => {
+                const areaObj = area as unknown as Record<string, unknown>;
+                return (
+                  (areaObj.area_name as string) ||
+                  (areaObj.areaName as string) ||
+                  (areaObj.name as string) ||
+                  (areaObj.area as string) ||
+                  "Unknown Area"
+                );
+              });
+            }
+          }
+          return zone;
+        });
+        setZones(processedZones);
       } else if (response.data && Array.isArray(response.data)) {
         // Handle case where response is directly an array
-        setZones(response.data);
+        setZones(response.data as DeliveryZone[]);
       } else {
         console.log("No zones found in response, setting empty array");
         setZones([]);
@@ -115,11 +289,6 @@ export default function DeliveryZonesPage() {
     try {
       setIsSubmitting(true);
 
-      const coverageAreas = formData.coverageAreas
-        .split(",")
-        .map((area) => area.trim())
-        .filter((area) => area.length > 0);
-
       if (editingZone) {
         // Update existing zone
         const response = await apiClient.updateDeliveryZone(editingZone.id, {
@@ -127,7 +296,6 @@ export default function DeliveryZonesPage() {
           description: formData.description,
           deliveryFee: parseFloat(formData.deliveryFee),
           estimatedDays: formData.estimatedDays,
-          coverageAreas,
         });
 
         if (response.data) {
@@ -142,11 +310,49 @@ export default function DeliveryZonesPage() {
           description: formData.description,
           deliveryFee: parseFloat(formData.deliveryFee),
           estimatedDays: formData.estimatedDays,
-          coverageAreas,
+          coverageAreas: [], // Will be managed through structured areas
         });
 
-        if (response.data) {
-          toast.success("Delivery zone created successfully");
+        // Handle different possible response structures
+        let newZoneId;
+        if (response.data && typeof response.data === "object") {
+          // Try different possible ID fields
+          const data = response.data as Record<string, unknown>;
+          newZoneId =
+            (data.id as string) ||
+            ((data.zone as Record<string, unknown>)?.id as string);
+        }
+
+        if (newZoneId) {
+          // Add all structured areas to the new zone
+          if (zoneAreas.length > 0) {
+            try {
+              for (const area of zoneAreas) {
+                await apiClient.addAreaToDeliveryZone(newZoneId, {
+                  regionId: area.region_id,
+                  cityId: area.city_id,
+                  areaName: area.area_name,
+                });
+              }
+              toast.success("Delivery zone and areas created successfully");
+            } catch (error) {
+              console.error("Error adding areas to new zone:", error);
+              toast.error("Zone created but failed to add some areas");
+            }
+          } else {
+            toast.success("Delivery zone created successfully");
+          }
+
+          // Add a small delay to ensure backend processes all areas
+          setTimeout(() => {
+            fetchZones();
+          }, 1000);
+          resetForm();
+        } else {
+          console.error("Could not find zone ID in response:", response);
+          toast.error(
+            "Zone created but could not add areas - please refresh and try again"
+          );
           fetchZones();
           resetForm();
         }
@@ -159,7 +365,7 @@ export default function DeliveryZonesPage() {
     }
   };
 
-  const handleEdit = (zone: DeliveryZone) => {
+  const handleEdit = async (zone: DeliveryZone) => {
     setEditingZone(zone);
     setFormData({
       name: zone.name,
@@ -168,6 +374,38 @@ export default function DeliveryZonesPage() {
       estimatedDays: zone.estimatedDays,
       coverageAreas: zone.coverageAreas.join(", "),
     });
+
+    // Load structured areas from backend
+    try {
+      console.log("Loading areas for zone:", zone.id);
+      const response = await apiClient.getDeliveryZoneAreas(zone.id);
+      console.log("Get zone areas response:", response);
+
+      const data = response.data as DeliveryZoneAreasResponse;
+      if (data && data.areas) {
+        console.log("Loaded areas:", data.areas);
+        console.log("First area structure:", data.areas[0]);
+        console.log("First area properties:", Object.keys(data.areas[0]));
+        setZoneAreas(data.areas);
+      } else {
+        console.log("No areas found in response");
+        setZoneAreas([]);
+      }
+    } catch (error) {
+      console.error("Error loading zone areas:", error);
+
+      // Fallback: try to use structuredAreas from the zone if available
+      if (zone.structuredAreas && zone.structuredAreas.length > 0) {
+        console.log(
+          "Using fallback structuredAreas from zone:",
+          zone.structuredAreas
+        );
+        setZoneAreas(zone.structuredAreas);
+      } else {
+        setZoneAreas([]);
+      }
+    }
+
     setIsDialogOpen(true);
   };
 
@@ -221,6 +459,10 @@ export default function DeliveryZonesPage() {
       estimatedDays: "",
       coverageAreas: "",
     });
+    setZoneAreas([]);
+    setNewArea({ regionId: "", cityId: "", areaName: "" });
+    setSelectedRegionId(null);
+    setCities([]);
     setEditingZone(null);
     setIsDialogOpen(false);
   };
@@ -395,24 +637,143 @@ export default function DeliveryZonesPage() {
                             />
                           </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="coverageAreas">
-                              Coverage Areas
-                            </Label>
-                            <Input
-                              id="coverageAreas"
-                              value={formData.coverageAreas}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  coverageAreas: e.target.value,
-                                })
-                              }
-                              placeholder="e.g., East Legon, Labone, Cantonments (comma-separated)"
-                            />
-                            <p className="text-xs text-muted-foreground">
-                              Separate multiple areas with commas
-                            </p>
+                          <div className="space-y-4">
+                            <Label>Coverage Areas</Label>
+
+                            {/* Add new area section */}
+                            <div className="border rounded-lg p-4 space-y-4">
+                              <h4 className="font-medium text-sm">
+                                Add Coverage Area
+                              </h4>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="region">Region</Label>
+                                  <Select
+                                    value={newArea.regionId}
+                                    onValueChange={handleRegionChange}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select region" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {regions.map((region) => (
+                                        <SelectItem
+                                          key={region.id}
+                                          value={region.id.toString()}
+                                        >
+                                          {region.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor="city">City</Label>
+                                  <Select
+                                    value={newArea.cityId}
+                                    onValueChange={(value) =>
+                                      setNewArea({
+                                        ...newArea,
+                                        cityId: value,
+                                        areaName: "",
+                                      })
+                                    }
+                                    disabled={!selectedRegionId}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select city" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {cities.map((city) => (
+                                        <SelectItem
+                                          key={city.id}
+                                          value={city.id.toString()}
+                                        >
+                                          {city.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor="areaName">Area Name</Label>
+                                  <Input
+                                    id="areaName"
+                                    value={newArea.areaName}
+                                    onChange={(e) =>
+                                      setNewArea({
+                                        ...newArea,
+                                        areaName: e.target.value,
+                                      })
+                                    }
+                                    placeholder="e.g., East Legon"
+                                    disabled={!newArea.cityId}
+                                  />
+                                </div>
+                              </div>
+
+                              <Button
+                                type="button"
+                                onClick={addArea}
+                                disabled={
+                                  !newArea.regionId ||
+                                  !newArea.cityId ||
+                                  !newArea.areaName
+                                }
+                                size="sm"
+                              >
+                                <IconPlus className="h-4 w-4 mr-2" />
+                                Add Area
+                              </Button>
+                            </div>
+
+                            {/* Display added areas */}
+                            {zoneAreas.length > 0 && (
+                              <div className="space-y-2">
+                                <Label>Added Areas</Label>
+                                <div className="space-y-2">
+                                  {zoneAreas.map((area) => (
+                                    <div
+                                      key={area.id}
+                                      className="flex items-center justify-between p-2 border rounded"
+                                    >
+                                      <span className="text-sm">
+                                        {(() => {
+                                          const areaObj =
+                                            area as unknown as Record<
+                                              string,
+                                              unknown
+                                            >;
+                                          const regionName =
+                                            (areaObj.region_name as string) ||
+                                            (areaObj.regionName as string) ||
+                                            "Unknown Region";
+                                          const cityName =
+                                            (areaObj.city_name as string) ||
+                                            (areaObj.cityName as string) ||
+                                            "Unknown City";
+                                          const areaName =
+                                            (areaObj.area_name as string) ||
+                                            (areaObj.areaName as string) ||
+                                            "Unknown Area";
+                                          return `${regionName} → ${cityName} → ${areaName}`;
+                                        })()}
+                                      </span>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => removeArea(area.id)}
+                                      >
+                                        <IconTrash className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
 
                           <DialogFooter>

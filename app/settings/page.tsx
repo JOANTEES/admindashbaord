@@ -36,7 +36,6 @@ interface AppSettings {
   freeShippingThreshold: number;
   largeOrderQuantityThreshold: number;
   largeOrderDeliveryFee: number;
-  pickupAddress: string;
   currencySymbol: string;
   currencyCode: string;
   updatedAt: string;
@@ -49,7 +48,6 @@ export default function SettingsPage() {
     freeShippingThreshold: 100.0,
     largeOrderQuantityThreshold: 10,
     largeOrderDeliveryFee: 50.0,
-    pickupAddress: "123 Main St, Accra",
     currencySymbol: "₵",
     currencyCode: "GHS",
     updatedAt: new Date().toISOString(),
@@ -356,40 +354,6 @@ export default function SettingsPage() {
                           />
                           <p className="text-xs text-muted-foreground">
                             Additional fee for large orders
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Pickup Location */}
-                    <Card className="lg:col-span-2">
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <IconMapPin className="h-5 w-5" />
-                          Pickup Location
-                        </CardTitle>
-                        <CardDescription>
-                          Set the address where customers can pick up orders
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2">
-                          <Label htmlFor="pickupAddress">Pickup Address</Label>
-                          <Textarea
-                            id="pickupAddress"
-                            value={settings.pickupAddress || ""}
-                            onChange={(e) =>
-                              handleSettingChange(
-                                "pickupAddress",
-                                e.target.value
-                              )
-                            }
-                            placeholder="Enter the full pickup address..."
-                            rows={3}
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            This address will be shown to customers who choose
-                            pickup
                           </p>
                         </div>
                       </CardContent>

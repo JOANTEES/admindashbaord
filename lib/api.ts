@@ -581,6 +581,99 @@ class ApiClient {
       body: JSON.stringify(data),
     });
   }
+
+  // Ghana Locations API methods
+  async getGhanaRegions() {
+    return this.request("/ghana/regions");
+  }
+
+  async getGhanaCities(regionId?: number) {
+    const endpoint = regionId ? `/ghana/cities/${regionId}` : "/ghana/cities";
+    return this.request(endpoint);
+  }
+
+  // Delivery Zone Areas API methods
+  async addAreaToDeliveryZone(
+    zoneId: string,
+    areaData: {
+      regionId: number;
+      cityId: number;
+      areaName: string;
+    }
+  ) {
+    return this.request(`/delivery-zones/${zoneId}/areas`, {
+      method: "POST",
+      body: JSON.stringify(areaData),
+    });
+  }
+
+  async removeAreaFromDeliveryZone(zoneId: string, areaId: string) {
+    return this.request(`/delivery-zones/${zoneId}/areas/${areaId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getDeliveryZoneAreas(zoneId: string) {
+    return this.request(`/delivery-zones/${zoneId}/areas`);
+  }
+
+  // Pickup Locations API methods
+  async getPickupLocations() {
+    return this.request("/pickup-locations");
+  }
+
+  async getPickupLocation(id: string) {
+    return this.request(`/pickup-locations/${id}`);
+  }
+
+  async createPickupLocation(data: {
+    name: string;
+    description: string;
+    regionId: number;
+    cityId: number;
+    areaName: string;
+    landmark?: string;
+    additionalInstructions?: string;
+    contactPhone: string;
+    contactEmail: string;
+    operatingHours: Record<string, string>;
+  }) {
+    return this.request("/pickup-locations", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updatePickupLocation(
+    id: string,
+    data: Partial<{
+      name: string;
+      description: string;
+      regionId: number;
+      cityId: number;
+      areaName: string;
+      landmark?: string;
+      additionalInstructions?: string;
+      contactPhone: string;
+      contactEmail: string;
+      operatingHours: Record<string, string>;
+    }>
+  ) {
+    return this.request(`/pickup-locations/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deletePickupLocation(id: string) {
+    return this.request(`/pickup-locations/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getAdminPickupLocations() {
+    return this.request("/pickup-locations/admin");
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
@@ -666,9 +759,104 @@ export interface DeliveryZone {
   deliveryFee: number;
   estimatedDays: string;
   coverageAreas: string[];
+  structuredAreas?: DeliveryZoneArea[];
   isActive: boolean;
   createdAt: string;
   updatedAt?: string;
+}
+
+export interface GhanaRegion {
+  id: number;
+  name: string;
+  code: string;
+}
+
+export interface GhanaCity {
+  id: number;
+  name: string;
+  region_id: number;
+  region_name: string;
+  region_code: string;
+}
+
+export interface DeliveryZoneArea {
+  id: number;
+  delivery_zone_id: number;
+  region_id: number;
+  city_id: number;
+  area_name: string;
+  region_name?: string;
+  city_name?: string;
+}
+
+export interface GhanaRegionsResponse {
+  success: boolean;
+  message: string;
+  count: number;
+  regions: GhanaRegion[];
+}
+
+export interface GhanaCitiesResponse {
+  success: boolean;
+  message: string;
+  count: number;
+  cities: GhanaCity[];
+}
+
+export interface DeliveryZonesResponse {
+  success: boolean;
+  message: string;
+  count: number;
+  zones: DeliveryZone[];
+}
+
+export interface DeliveryZoneAreasResponse {
+  success: boolean;
+  message: string;
+  count: number;
+  areas: DeliveryZoneArea[];
+}
+
+export interface AddAreaResponse {
+  success: boolean;
+  message: string;
+  area: DeliveryZoneArea;
+}
+
+export interface CreateDeliveryZoneResponse {
+  success: boolean;
+  message: string;
+  id: string;
+  name: string;
+  description: string;
+  deliveryFee: number;
+  estimatedDays: string;
+  coverageAreas: string[];
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface PickupLocation {
+  id: string;
+  name: string;
+  description: string;
+  regionName: string;
+  cityName: string;
+  areaName: string;
+  landmark?: string;
+  additionalInstructions?: string;
+  contactPhone: string;
+  contactEmail: string;
+  operatingHours: Record<string, string>;
+  googleMapsLink: string;
+  createdAt: string;
+}
+
+export interface PickupLocationsResponse {
+  success: boolean;
+  message: string;
+  count: number;
+  locations: PickupLocation[];
 }
 
 // Backend Product interface (matches your actual backend response)
