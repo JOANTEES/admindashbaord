@@ -303,6 +303,8 @@ class ApiClient {
     color: string;
     stock: number;
     requiresSpecialDelivery?: boolean;
+    deliveryEligible?: boolean;
+    pickupEligible?: boolean;
   }) {
     // Map frontend fields to backend schema
     const payload = {
@@ -315,6 +317,14 @@ class ApiClient {
       stock_quantity: productData.stock,
       image_url: productData.imageUrl,
       requires_special_delivery: productData.requiresSpecialDelivery || false,
+      delivery_eligible:
+        productData.deliveryEligible !== undefined
+          ? productData.deliveryEligible
+          : true,
+      pickup_eligible:
+        productData.pickupEligible !== undefined
+          ? productData.pickupEligible
+          : true,
     } as Record<string, unknown>;
 
     // Remove undefined to avoid validation issues
@@ -342,6 +352,8 @@ class ApiClient {
       stock: number;
       imageUrl?: string;
       requiresSpecialDelivery?: boolean;
+      deliveryEligible?: boolean;
+      pickupEligible?: boolean;
     }>
   ) {
     const payload = {
@@ -354,6 +366,8 @@ class ApiClient {
       stock_quantity: updates.stock,
       image_url: updates.imageUrl,
       requires_special_delivery: updates.requiresSpecialDelivery,
+      delivery_eligible: updates.deliveryEligible,
+      pickup_eligible: updates.pickupEligible,
     } as Record<string, unknown>;
 
     Object.keys(payload).forEach((key) => {
@@ -872,5 +886,7 @@ export interface Product {
   image_url: string | null;
   is_active: boolean;
   requires_special_delivery: boolean;
+  delivery_eligible: boolean;
+  pickup_eligible: boolean;
   created_at: string;
 }

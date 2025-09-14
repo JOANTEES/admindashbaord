@@ -65,6 +65,8 @@ export default function ClothesPage() {
     stock: "",
     imageUrl: "",
     requiresSpecialDelivery: false,
+    deliveryEligible: true,
+    pickupEligible: true,
   });
   const [formFile, setFormFile] = useState<File | null>(null);
   const [isAddingClothes, setIsAddingClothes] = useState(false);
@@ -83,6 +85,8 @@ export default function ClothesPage() {
     stock: "",
     imageUrl: "",
     requiresSpecialDelivery: false,
+    deliveryEligible: true,
+    pickupEligible: true,
   });
   const [editFormFile, setEditFormFile] = useState<File | null>(null);
 
@@ -152,6 +156,8 @@ export default function ClothesPage() {
         stock: parseInt(formData.stock),
         imageUrl,
         requiresSpecialDelivery: formData.requiresSpecialDelivery,
+        deliveryEligible: formData.deliveryEligible,
+        pickupEligible: formData.pickupEligible,
       });
 
       if (response.data) {
@@ -167,6 +173,8 @@ export default function ClothesPage() {
           stock: "",
           imageUrl: "",
           requiresSpecialDelivery: false,
+          deliveryEligible: true,
+          pickupEligible: true,
         });
         setFormFile(null);
         fetchClothes(); // Refresh the list
@@ -205,6 +213,10 @@ export default function ClothesPage() {
       stock: String(item.stock_quantity ?? ""),
       imageUrl: item.image_url || "",
       requiresSpecialDelivery: item.requires_special_delivery || false,
+      deliveryEligible:
+        item.delivery_eligible !== undefined ? item.delivery_eligible : true,
+      pickupEligible:
+        item.pickup_eligible !== undefined ? item.pickup_eligible : true,
     });
     setIsEditDialogOpen(true);
   };
@@ -241,6 +253,8 @@ export default function ClothesPage() {
         stock: parseInt(editFormData.stock),
         imageUrl,
         requiresSpecialDelivery: editFormData.requiresSpecialDelivery,
+        deliveryEligible: editFormData.deliveryEligible,
+        pickupEligible: editFormData.pickupEligible,
       });
       toast.success("Clothes updated successfully");
       setIsEditDialogOpen(false);
@@ -488,6 +502,43 @@ export default function ClothesPage() {
                               Requires Special Delivery
                             </Label>
                           </div>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id="deliveryEligible"
+                              checked={formData.deliveryEligible}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  deliveryEligible: e.target.checked,
+                                })
+                              }
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <Label
+                              htmlFor="deliveryEligible"
+                              className="text-sm"
+                            >
+                              Can Be Delivered
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id="pickupEligible"
+                              checked={formData.pickupEligible}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  pickupEligible: e.target.checked,
+                                })
+                              }
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <Label htmlFor="pickupEligible" className="text-sm">
+                              Can Be Picked Up
+                            </Label>
+                          </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <Label htmlFor="imageUrl">
@@ -679,6 +730,46 @@ export default function ClothesPage() {
                               Requires Special Delivery
                             </Label>
                           </div>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id="edit_deliveryEligible"
+                              checked={editFormData.deliveryEligible}
+                              onChange={(e) =>
+                                setEditFormData({
+                                  ...editFormData,
+                                  deliveryEligible: e.target.checked,
+                                })
+                              }
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <Label
+                              htmlFor="edit_deliveryEligible"
+                              className="text-sm"
+                            >
+                              Can Be Delivered
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id="edit_pickupEligible"
+                              checked={editFormData.pickupEligible}
+                              onChange={(e) =>
+                                setEditFormData({
+                                  ...editFormData,
+                                  pickupEligible: e.target.checked,
+                                })
+                              }
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <Label
+                              htmlFor="edit_pickupEligible"
+                              className="text-sm"
+                            >
+                              Can Be Picked Up
+                            </Label>
+                          </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <Label htmlFor="edit_imageUrl">
@@ -860,14 +951,32 @@ export default function ClothesPage() {
                             <Badge variant="outline" className="text-xs">
                               {item.color}
                             </Badge>
-                            {item.requires_special_delivery && (
-                              <Badge
-                                variant="outline"
-                                className="text-xs bg-orange-100 text-orange-700 border-orange-200"
-                              >
-                                Special Delivery
-                              </Badge>
-                            )}
+                            <div className="flex flex-wrap gap-1">
+                              {item.requires_special_delivery && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs bg-orange-100 text-orange-700 border-orange-200"
+                                >
+                                  Special Delivery
+                                </Badge>
+                              )}
+                              {!item.delivery_eligible && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs bg-red-100 text-red-700 border-red-200"
+                                >
+                                  No Delivery
+                                </Badge>
+                              )}
+                              {!item.pickup_eligible && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs bg-red-100 text-red-700 border-red-200"
+                                >
+                                  No Pickup
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-sm text-muted-foreground">
