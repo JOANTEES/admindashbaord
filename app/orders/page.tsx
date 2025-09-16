@@ -60,10 +60,12 @@ interface Order {
     | "pending"
     | "confirmed"
     | "processing"
-    | "picked_up"
-    | "in_transit"
+    | "ready_for_pickup"
+    | "shipped"
+    | "out_for_delivery"
     | "delivered"
-    | "cancelled";
+    | "cancelled"
+    | "refunded";
   paymentStatus: "pending" | "paid" | "failed" | "refunded";
   createdAt: string;
   updatedAt: string;
@@ -107,11 +109,42 @@ export default function OrdersPage() {
   const fetchOrders = useCallback(async () => {
     try {
       setIsLoading(true);
-      // Note: Order management endpoints are "Coming Soon" according to backend README
-      // const response = await apiClient.getOrders();
-      // setOrders(response.data.orders);
+      const response = await apiClient.getOrders();
+      const payload = response.data as {
+        orders?: Array<Record<string, unknown>>;
+      };
 
-      // Using mock data until backend implements order endpoints
+      if (payload.orders) {
+        const mapped: Order[] = payload.orders.map((o) => ({
+          id: String(o.id ?? ""),
+          orderNumber: String(o.orderNumber ?? ""),
+          customerName: String(o.customerName ?? ""),
+          customerEmail: String(o.customerEmail ?? ""),
+          customerPhone: String(o.customerPhone ?? ""),
+          items: [], // Items will be loaded separately if needed
+          deliveryMethod: String(o.deliveryMethod ?? "delivery") as
+            | "pickup"
+            | "delivery",
+          deliveryZoneId: String(o.deliveryZoneId ?? ""),
+          deliveryZoneName: String(o.deliveryZoneName ?? ""),
+          deliveryAddress: String(o.deliveryAddress ?? ""),
+          subtotal: Number(o.subtotal ?? 0),
+          tax: Number(o.tax ?? 0),
+          shipping: Number(o.shipping ?? 0),
+          total: Number(o.total ?? 0),
+          status: String(o.status ?? "pending") as Order["status"],
+          paymentStatus: String(
+            o.paymentStatus ?? "pending"
+          ) as Order["paymentStatus"],
+          createdAt: String(o.createdAt ?? ""),
+          updatedAt: String(o.updatedAt ?? ""),
+        }));
+        setOrders(mapped);
+      } else {
+        setOrders([]);
+      }
+
+      // Fallback to mock data if API fails
       const mockOrders: Order[] = [
         {
           id: "1",
@@ -206,6 +239,30 @@ export default function OrdersPage() {
     });
   };
 
+  const handleOrderStatusUpdate = async (
+    orderId: string,
+    newStatus: Order["status"]
+  ) => {
+    try {
+      await apiClient.updateOrderStatus(orderId, newStatus);
+      setOrders(
+        orders.map((order) =>
+          order.id === orderId
+            ? {
+                ...order,
+                status: newStatus,
+                updatedAt: new Date().toISOString(),
+              }
+            : order
+        )
+      );
+      toast.success(`Order status updated to ${newStatus}`);
+    } catch (error) {
+      console.error("Failed to update order status:", error);
+      toast.error("Failed to update order status");
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "pending":
@@ -214,14 +271,18 @@ export default function OrdersPage() {
         return "bg-blue-500";
       case "processing":
         return "bg-purple-500";
-      case "picked_up":
+      case "ready_for_pickup":
         return "bg-orange-500";
-      case "in_transit":
+      case "shipped":
         return "bg-cyan-500";
+      case "out_for_delivery":
+        return "bg-indigo-500";
       case "delivered":
         return "bg-green-500";
       case "cancelled":
         return "bg-red-500";
+      case "refunded":
+        return "bg-gray-500";
       default:
         return "bg-gray-500";
     }
@@ -235,14 +296,18 @@ export default function OrdersPage() {
         return "Confirmed";
       case "processing":
         return "Processing";
-      case "picked_up":
-        return "Picked Up";
-      case "in_transit":
-        return "In Transit";
+      case "ready_for_pickup":
+        return "Ready for Pickup";
+      case "shipped":
+        return "Shipped";
+      case "out_for_delivery":
+        return "Out for Delivery";
       case "delivered":
         return "Delivered";
       case "cancelled":
         return "Cancelled";
+      case "refunded":
+        return "Refunded";
       default:
         return status;
     }
@@ -584,9 +649,45 @@ export default function OrdersPage() {
                                   )}
                               </TableCell>
                               <TableCell>
-                                <Badge className={getStatusColor(order.status)}>
-                                  {getStatusLabel(order.status)}
-                                </Badge>
+                                <Select
+                                  value={order.status}
+                                  onValueChange={(value: Order["status"]) =>
+                                    handleOrderStatusUpdate(order.id, value)
+                                  }
+                                >
+                                  <SelectTrigger className="w-[140px]">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="pending">
+                                      Pending
+                                    </SelectItem>
+                                    <SelectItem value="confirmed">
+                                      Confirmed
+                                    </SelectItem>
+                                    <SelectItem value="processing">
+                                      Processing
+                                    </SelectItem>
+                                    <SelectItem value="ready_for_pickup">
+                                      Ready for Pickup
+                                    </SelectItem>
+                                    <SelectItem value="shipped">
+                                      Shipped
+                                    </SelectItem>
+                                    <SelectItem value="out_for_delivery">
+                                      Out for Delivery
+                                    </SelectItem>
+                                    <SelectItem value="delivered">
+                                      Delivered
+                                    </SelectItem>
+                                    <SelectItem value="cancelled">
+                                      Cancelled
+                                    </SelectItem>
+                                    <SelectItem value="refunded">
+                                      Refunded
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </TableCell>
                               <TableCell>
                                 <Badge

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Fragment } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -20,7 +20,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -33,7 +32,6 @@ import {
 } from "@/components/ui/table";
 import {
   IconEye,
-  IconX,
   IconPlus,
   IconSearch,
   IconFilter,
@@ -42,40 +40,66 @@ import {
   IconCreditCard,
   IconReceipt,
   IconDownload,
+  IconChevronDown,
+  IconChevronRight,
+  IconClock,
 } from "@tabler/icons-react";
 import { ProtectedRoute } from "@/components/protected-route";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
 
+interface PaymentTransaction {
+  amount: number;
+  method: string;
+  timestamp: string;
+  notes?: string;
+}
+
+interface PaymentHistory {
+  transactions: PaymentTransaction[];
+}
+
 interface Payment {
   id: string;
-  bookingId: string;
-  customerName: string;
-  customerEmail: string;
-  eventTitle: string;
+  booking_id?: string;
+  order_id?: string;
   amount: number;
   currency: string;
-  paymentMethod: "cash" | "mobile_money" | "bank_transfer" | "card" | "check";
-  status: "completed" | "pending" | "failed" | "refunded" | "cancelled";
-  transactionId: string;
-  paymentDate: string;
-  dueDate: string;
-  notes: string;
-  receiptNumber: string;
-  processedBy: string;
+  status:
+    | "completed"
+    | "pending"
+    | "failed"
+    | "refunded"
+    | "cancelled"
+    | "partial";
+  method: "cash" | "bank_transfer" | "check" | "paystack";
+  provider: "manual" | "paystack";
+  payment_history?: PaymentHistory;
+  booking_title?: string;
+  booking_customer?: string;
+  order_number?: string;
+  order_customer?: string;
+  created_at: string;
+  // Legacy fields for backward compatibility
+  bookingId?: string;
+  customerName?: string;
+  customerEmail?: string;
+  eventTitle?: string;
+  paymentMethod?: string;
+  transactionId?: string;
+  paymentDate?: string;
+  dueDate?: string;
+  notes?: string;
+  receiptNumber?: string;
+  processedBy?: string;
 }
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
 
-  const [formData, setFormData] = useState({
-    bookingId: "",
-    customerName: "",
-    customerEmail: "",
-    eventTitle: "",
+  const [partialPaymentData, setPartialPaymentData] = useState({
     amount: "",
-    paymentMethod: "",
-    dueDate: "",
+    method: "cash" as "cash" | "bank_transfer" | "check" | "paystack",
     notes: "",
   });
 
@@ -86,7 +110,13 @@ export default function PaymentsPage() {
     "date" | "amount" | "status" | "customer"
   >("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedPaymentForPartial, setSelectedPaymentForPartial] =
+    useState<Payment | null>(null);
+  const [isPartialPaymentDialogOpen, setIsPartialPaymentDialogOpen] =
+    useState(false);
+  const [expandedPayments, setExpandedPayments] = useState<Set<string>>(
+    new Set()
+  );
 
   useEffect(() => {
     const load = async () => {
@@ -95,42 +125,90 @@ export default function PaymentsPage() {
         const payload = res.data as {
           payments?: Array<Record<string, unknown>>;
         };
+
+        console.log("🔍 Raw API response:", res);
+        console.log("🔍 Raw payment data from API:", payload.payments);
+
+        // Let's examine one payment in detail to see what fields are available
+        if (payload.payments && payload.payments.length > 0) {
+          console.log(
+            "🔍 Detailed examination of first payment:",
+            payload.payments[0]
+          );
+          console.log("🔍 Available fields:", Object.keys(payload.payments[0]));
+        }
+
         if (payload.payments) {
-          const mapped: Payment[] = payload.payments.map((p) => ({
-            id: String(p.id ?? ""),
-            bookingId: String((p as { booking_id?: unknown }).booking_id ?? ""),
-            customerName: String(
-              (p as { customer_name?: unknown }).customer_name ?? ""
-            ),
-            customerEmail: String(
-              (p as { customer_email?: unknown }).customer_email ??
-                (p as { booking_email?: unknown }).booking_email ??
-                ""
-            ),
-            eventTitle: String(
-              (p as { event_title?: unknown }).event_title ?? ""
-            ),
-            amount: Number((p as { amount?: unknown }).amount ?? 0),
-            currency: String((p as { currency?: unknown }).currency ?? "GHS"),
-            paymentMethod: String(
-              (p as { method?: unknown }).method ?? "cash"
-            ) as Payment["paymentMethod"],
-            status: String(
-              (p as { status?: unknown }).status ?? "pending"
-            ) as Payment["status"],
-            transactionId: String(
-              (p as { transaction_id?: unknown }).transaction_id ??
-                (p as { paystack_reference?: unknown }).paystack_reference ??
-                ""
-            ),
-            paymentDate: String(
-              (p as { created_at?: unknown }).created_at ?? ""
-            ),
-            dueDate: "",
-            notes: String((p as { notes?: unknown }).notes ?? ""),
-            receiptNumber: "",
-            processedBy: "",
-          }));
+          const mapped: Payment[] = payload.payments.map((p) => {
+            console.log(`🔍 Mapping payment ${p.id}:`, p);
+            return {
+              id: String(p.id ?? ""),
+              booking_id: String(
+                (p as { booking_id?: unknown }).booking_id ?? ""
+              ),
+              order_id: String((p as { order_id?: unknown }).order_id ?? ""),
+              amount: Number((p as { amount?: unknown }).amount ?? 0),
+              currency: String((p as { currency?: unknown }).currency ?? "GHS"),
+              method: String(
+                (p as { method?: unknown }).method ?? "cash"
+              ) as Payment["method"],
+              status: String(
+                (p as { status?: unknown }).status ?? "pending"
+              ) as Payment["status"],
+              provider: String(
+                (p as { provider?: unknown }).provider ?? "manual"
+              ) as Payment["provider"],
+              payment_history: (p as { payment_history?: unknown })
+                .payment_history as PaymentHistory | undefined,
+              booking_title: String(
+                (p as { booking_title?: unknown }).booking_title ?? ""
+              ),
+              booking_customer: String(
+                (p as { booking_customer?: unknown }).booking_customer ?? ""
+              ),
+              order_number: String(
+                (p as { order_number?: unknown }).order_number ?? ""
+              ),
+              order_customer: String(
+                (p as { order_customer?: unknown }).order_customer ?? ""
+              ),
+              created_at: String(
+                (p as { created_at?: unknown }).created_at ?? ""
+              ),
+              // Legacy fields for backward compatibility
+              bookingId: String(
+                (p as { booking_id?: unknown }).booking_id ?? ""
+              ),
+              customerName: String(
+                (p as { booking_customer?: unknown }).booking_customer ??
+                  (p as { order_customer?: unknown }).order_customer ??
+                  ""
+              ),
+              customerEmail: String(
+                (p as { customer_email?: unknown }).customer_email ??
+                  (p as { booking_email?: unknown }).booking_email ??
+                  ""
+              ),
+              eventTitle: String(
+                (p as { booking_title?: unknown }).booking_title ?? ""
+              ),
+              paymentMethod: String(
+                (p as { method?: unknown }).method ?? "cash"
+              ),
+              transactionId: String(
+                (p as { transaction_id?: unknown }).transaction_id ??
+                  (p as { paystack_reference?: unknown }).paystack_reference ??
+                  ""
+              ),
+              paymentDate: String(
+                (p as { created_at?: unknown }).created_at ?? ""
+              ),
+              dueDate: "",
+              notes: String((p as { notes?: unknown }).notes ?? ""),
+              receiptNumber: "",
+              processedBy: "",
+            };
+          });
           setPayments(mapped);
         } else {
           setPayments([]);
@@ -146,18 +224,27 @@ export default function PaymentsPage() {
   // Filter and sort payments
   const filteredAndSortedPayments = useMemo(() => {
     const filtered = payments.filter((payment) => {
+      const customerName =
+        payment.customerName ||
+        payment.booking_customer ||
+        payment.order_customer ||
+        "";
+      const customerEmail = payment.customerEmail || "";
+      const eventTitle = payment.eventTitle || payment.booking_title || "";
+      const bookingId = payment.bookingId || payment.booking_id || "";
+      const orderNumber = payment.order_number || "";
+
       const matchesSearch =
-        payment.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        payment.customerEmail
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        payment.eventTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        payment.bookingId.toLowerCase().includes(searchTerm.toLowerCase());
+        customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        eventTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        bookingId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        orderNumber.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus =
         selectedStatus === "all" || payment.status === selectedStatus;
       const matchesPaymentMethod =
         selectedPaymentMethod === "all" ||
-        payment.paymentMethod === selectedPaymentMethod;
+        payment.method === selectedPaymentMethod;
       return matchesSearch && matchesStatus && matchesPaymentMethod;
     });
 
@@ -167,8 +254,8 @@ export default function PaymentsPage() {
 
       switch (sortBy) {
         case "date":
-          aValue = new Date(a.paymentDate || a.dueDate).getTime();
-          bValue = new Date(b.paymentDate || b.dueDate).getTime();
+          aValue = new Date(a.created_at || a.paymentDate || "").getTime();
+          bValue = new Date(b.created_at || b.paymentDate || "").getTime();
           break;
         case "amount":
           aValue = a.amount;
@@ -179,12 +266,14 @@ export default function PaymentsPage() {
           bValue = b.status;
           break;
         case "customer":
-          aValue = a.customerName;
-          bValue = b.customerName;
+          aValue =
+            a.customerName || a.booking_customer || a.order_customer || "";
+          bValue =
+            b.customerName || b.booking_customer || b.order_customer || "";
           break;
         default:
-          aValue = new Date(a.paymentDate || a.dueDate).getTime();
-          bValue = new Date(b.paymentDate || b.dueDate).getTime();
+          aValue = new Date(a.created_at || a.paymentDate || "").getTime();
+          bValue = new Date(b.created_at || b.paymentDate || "").getTime();
       }
 
       if (sortOrder === "asc") {
@@ -204,104 +293,320 @@ export default function PaymentsPage() {
     sortOrder,
   ]);
 
-  const paymentMethods = ["cash", "bank_transfer", "check"];
-  const statuses = ["completed", "pending", "failed", "refunded", "cancelled"];
+  const paymentMethods = ["cash", "bank_transfer", "check", "paystack"];
+  const statuses = [
+    "completed",
+    "pending",
+    "failed",
+    "refunded",
+    "cancelled",
+    "partial",
+  ];
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleAddPartialPayment = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.bookingId || !formData.amount || !formData.paymentMethod) {
+    if (!partialPaymentData.amount || !selectedPaymentForPartial) {
       toast.error("Please fill in all required fields");
       return;
     }
 
     try {
-      const res = await apiClient.addPayment({
-        booking_id: parseInt(formData.bookingId, 10),
-        amount: parseFloat(formData.amount),
-        method: formData.paymentMethod as "cash" | "bank_transfer" | "check",
-        currency: "GHS",
-        status: "pending",
-        notes: formData.notes || undefined,
+      await apiClient.addPartialPayment(selectedPaymentForPartial.id, {
+        amount: parseFloat(partialPaymentData.amount),
+        method: partialPaymentData.method,
+        notes: partialPaymentData.notes || undefined,
       });
 
-      const responseData = res.data as { payment?: Record<string, unknown> };
-      if (responseData.payment) {
-        const p = responseData.payment as Record<string, unknown>;
-        const newPayment: Payment = {
+      toast.success("Partial payment added successfully");
+      setIsPartialPaymentDialogOpen(false);
+      setPartialPaymentData({ amount: "", method: "cash", notes: "" });
+      setSelectedPaymentForPartial(null);
+
+      // Reload payments to get updated data
+      const res = await apiClient.getPayments();
+      const payload = res.data as { payments?: Array<Record<string, unknown>> };
+      if (payload.payments) {
+        const mapped: Payment[] = payload.payments.map((p) => ({
           id: String(p.id ?? ""),
-          bookingId: String((p as { booking_id?: unknown }).booking_id ?? ""),
-          customerName: formData.customerName,
-          customerEmail: formData.customerEmail,
-          eventTitle: formData.eventTitle,
+          booking_id: String((p as { booking_id?: unknown }).booking_id ?? ""),
+          order_id: String((p as { order_id?: unknown }).order_id ?? ""),
           amount: Number((p as { amount?: unknown }).amount ?? 0),
           currency: String((p as { currency?: unknown }).currency ?? "GHS"),
-          paymentMethod: String(
+          method: String(
             (p as { method?: unknown }).method ?? "cash"
-          ) as Payment["paymentMethod"],
+          ) as Payment["method"],
           status: String(
             (p as { status?: unknown }).status ?? "pending"
           ) as Payment["status"],
+          provider: String(
+            (p as { provider?: unknown }).provider ?? "manual"
+          ) as Payment["provider"],
+          payment_history: (p as { payment_history?: unknown }).payment_history
+            ? {
+                transactions: (
+                  (p as { payment_history?: { transactions?: unknown[] } })
+                    .payment_history?.transactions || []
+                ).map((tx: unknown) => ({
+                  amount: Number((tx as { amount?: unknown }).amount || 0), // Ensure transaction amounts are numbers
+                  method: String((tx as { method?: unknown }).method || "cash"),
+                  timestamp: String(
+                    (tx as { timestamp?: unknown }).timestamp || ""
+                  ),
+                  notes: (tx as { notes?: unknown }).notes
+                    ? String((tx as { notes?: unknown }).notes)
+                    : undefined,
+                })),
+              }
+            : undefined,
+          booking_title: String(
+            (p as { booking_title?: unknown }).booking_title ?? ""
+          ),
+          booking_customer: String(
+            (p as { booking_customer?: unknown }).booking_customer ?? ""
+          ),
+          order_number: String(
+            (p as { order_number?: unknown }).order_number ?? ""
+          ),
+          order_customer: String(
+            (p as { order_customer?: unknown }).order_customer ?? ""
+          ),
+          created_at: String((p as { created_at?: unknown }).created_at ?? ""),
+          // Legacy fields for backward compatibility
+          bookingId: String((p as { booking_id?: unknown }).booking_id ?? ""),
+          customerName: String(
+            (p as { booking_customer?: unknown }).booking_customer ??
+              (p as { order_customer?: unknown }).order_customer ??
+              ""
+          ),
+          customerEmail: String(
+            (p as { customer_email?: unknown }).customer_email ??
+              (p as { booking_email?: unknown }).booking_email ??
+              ""
+          ),
+          eventTitle: String(
+            (p as { booking_title?: unknown }).booking_title ?? ""
+          ),
+          paymentMethod: String((p as { method?: unknown }).method ?? "cash"),
           transactionId: String(
-            (p as { transaction_id?: unknown }).transaction_id ?? ""
+            (p as { transaction_id?: unknown }).transaction_id ??
+              (p as { paystack_reference?: unknown }).paystack_reference ??
+              ""
           ),
           paymentDate: String((p as { created_at?: unknown }).created_at ?? ""),
-          dueDate: formData.dueDate,
-          notes: formData.notes,
+          dueDate: "",
+          notes: String((p as { notes?: unknown }).notes ?? ""),
           receiptNumber: "",
           processedBy: "",
-        };
-        setPayments([...payments, newPayment]);
+        }));
+        setPayments(mapped);
       }
-
-      setFormData({
-        bookingId: "",
-        customerName: "",
-        customerEmail: "",
-        eventTitle: "",
-        amount: "",
-        paymentMethod: "",
-        dueDate: "",
-        notes: "",
-      });
-      setIsDialogOpen(false);
-      toast.success("Payment record created successfully!");
-    } catch (err) {
-      console.error("Failed to create payment", err);
-      toast.error("Failed to create payment");
+    } catch (error) {
+      console.error("Failed to add partial payment", error);
+      toast.error("Failed to add partial payment");
     }
   };
 
-  const handleStatusChange = async (
-    id: string,
-    newStatus: Payment["status"]
+  const handleUpdatePaymentStatus = async (
+    paymentId: string,
+    status: Payment["status"]
   ) => {
     try {
-      await apiClient.updatePaymentStatus(id, newStatus);
-      setPayments(
-        payments.map((payment) =>
-          payment.id === id
-            ? {
-                ...payment,
-                status: newStatus,
-                paymentDate:
-                  newStatus === "completed"
-                    ? new Date().toISOString()
-                    : payment.paymentDate,
-              }
-            : payment
-        )
+      await apiClient.updatePaymentStatus(
+        paymentId,
+        status as
+          | "completed"
+          | "pending"
+          | "failed"
+          | "refunded"
+          | "cancelled"
+          | "partial"
       );
-      toast.success(`Payment status updated to ${newStatus}`);
-    } catch (e) {
-      console.error("Failed to update payment status", e);
+      toast.success("Payment status updated successfully");
+
+      // Reload payments to get updated data
+      const res = await apiClient.getPayments();
+      const payload = res.data as { payments?: Array<Record<string, unknown>> };
+      if (payload.payments) {
+        const mapped: Payment[] = payload.payments.map((p) => ({
+          id: String(p.id ?? ""),
+          booking_id: String((p as { booking_id?: unknown }).booking_id ?? ""),
+          order_id: String((p as { order_id?: unknown }).order_id ?? ""),
+          amount: Number((p as { amount?: unknown }).amount ?? 0),
+          currency: String((p as { currency?: unknown }).currency ?? "GHS"),
+          method: String(
+            (p as { method?: unknown }).method ?? "cash"
+          ) as Payment["method"],
+          status: String(
+            (p as { status?: unknown }).status ?? "pending"
+          ) as Payment["status"],
+          provider: String(
+            (p as { provider?: unknown }).provider ?? "manual"
+          ) as Payment["provider"],
+          payment_history: (p as { payment_history?: unknown }).payment_history
+            ? {
+                transactions: (
+                  (p as { payment_history?: { transactions?: unknown[] } })
+                    .payment_history?.transactions || []
+                ).map((tx: unknown) => ({
+                  amount: Number((tx as { amount?: unknown }).amount || 0), // Ensure transaction amounts are numbers
+                  method: String((tx as { method?: unknown }).method || "cash"),
+                  timestamp: String(
+                    (tx as { timestamp?: unknown }).timestamp || ""
+                  ),
+                  notes: (tx as { notes?: unknown }).notes
+                    ? String((tx as { notes?: unknown }).notes)
+                    : undefined,
+                })),
+              }
+            : undefined,
+          booking_title: String(
+            (p as { booking_title?: unknown }).booking_title ?? ""
+          ),
+          booking_customer: String(
+            (p as { booking_customer?: unknown }).booking_customer ?? ""
+          ),
+          order_number: String(
+            (p as { order_number?: unknown }).order_number ?? ""
+          ),
+          order_customer: String(
+            (p as { order_customer?: unknown }).order_customer ?? ""
+          ),
+          created_at: String((p as { created_at?: unknown }).created_at ?? ""),
+          // Legacy fields for backward compatibility
+          bookingId: String((p as { booking_id?: unknown }).booking_id ?? ""),
+          customerName: String(
+            (p as { booking_customer?: unknown }).booking_customer ??
+              (p as { order_customer?: unknown }).order_customer ??
+              ""
+          ),
+          customerEmail: String(
+            (p as { customer_email?: unknown }).customer_email ??
+              (p as { booking_email?: unknown }).booking_email ??
+              ""
+          ),
+          eventTitle: String(
+            (p as { booking_title?: unknown }).booking_title ?? ""
+          ),
+          paymentMethod: String((p as { method?: unknown }).method ?? "cash"),
+          transactionId: String(
+            (p as { transaction_id?: unknown }).transaction_id ??
+              (p as { paystack_reference?: unknown }).paystack_reference ??
+              ""
+          ),
+          paymentDate: String((p as { created_at?: unknown }).created_at ?? ""),
+          dueDate: "",
+          notes: String((p as { notes?: unknown }).notes ?? ""),
+          receiptNumber: "",
+          processedBy: "",
+        }));
+        setPayments(mapped);
+      }
+    } catch (error) {
+      console.error("Failed to update payment status", error);
       toast.error("Failed to update payment status");
     }
   };
 
-  const handleDelete = (id: string) => {
-    setPayments(payments.filter((payment) => payment.id !== id));
-    toast.success("Payment record deleted successfully!");
+  const openPartialPaymentDialog = (payment: Payment) => {
+    setSelectedPaymentForPartial(payment);
+    setIsPartialPaymentDialogOpen(true);
+  };
+
+  const togglePaymentExpansion = (paymentId: string) => {
+    const newExpanded = new Set(expandedPayments);
+    if (newExpanded.has(paymentId)) {
+      newExpanded.delete(paymentId);
+    } else {
+      newExpanded.add(paymentId);
+    }
+    setExpandedPayments(newExpanded);
+  };
+
+  // Calculate amount paid from payment history
+  const calculateAmountPaid = (payment: Payment): number => {
+    // Special case: If payment is completed, it should be fully paid
+    if (payment.status === "completed") {
+      return payment.amount;
+    }
+
+    // If no payment history but payment exists, return 0
+    if (
+      !payment.payment_history?.transactions ||
+      payment.payment_history.transactions.length === 0
+    ) {
+      return 0;
+    }
+
+    const total = payment.payment_history.transactions.reduce(
+      (total, transaction) => {
+        const amount = Number(transaction.amount || 0);
+        return total + amount;
+      },
+      0
+    );
+
+    return total;
+  };
+
+  // Calculate remaining amount
+  const calculateRemaining = (payment: Payment): number => {
+    return payment.amount - calculateAmountPaid(payment);
+  };
+
+  // Calculate payment progress percentage
+  const calculateProgress = (payment: Payment): number => {
+    if (payment.amount === 0) return 0;
+    return Math.min((calculateAmountPaid(payment) / payment.amount) * 100, 100);
+  };
+
+  const formatPaymentHistory = (payment: Payment) => {
+    if (
+      !payment.payment_history?.transactions ||
+      payment.payment_history.transactions.length === 0
+    ) {
+      return (
+        <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+          <p className="text-sm text-gray-500">No payment history available</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+        <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+          <IconClock className="h-4 w-4" />
+          Payment History ({payment.payment_history.transactions.length}{" "}
+          transactions)
+        </h4>
+        <div className="space-y-2">
+          {payment.payment_history.transactions.map((transaction, index) => (
+            <div
+              key={index}
+              className="flex justify-between items-center text-sm"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span className="font-medium">
+                  ₵{transaction.amount.toFixed(2)}
+                </span>
+                <span className="text-gray-500">
+                  via {transaction.method.replace("_", " ")}
+                </span>
+                {transaction.notes && (
+                  <span className="text-gray-400 text-xs">
+                    - {transaction.notes}
+                  </span>
+                )}
+              </div>
+              <div className="text-gray-500 text-xs">
+                {new Date(transaction.timestamp).toLocaleDateString()}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   const getStatusBadge = (status: string) => {
@@ -310,6 +615,8 @@ export default function PaymentsPage() {
         return <Badge className="bg-green-500">Completed</Badge>;
       case "pending":
         return <Badge className="bg-yellow-500">Pending</Badge>;
+      case "partial":
+        return <Badge className="bg-orange-500">Partial</Badge>;
       case "failed":
         return <Badge className="bg-red-500">Failed</Badge>;
       case "refunded":
@@ -329,28 +636,22 @@ export default function PaymentsPage() {
             Cash
           </Badge>
         );
-      case "mobile_money":
-        return (
-          <Badge variant="outline" className="text-blue-600">
-            Mobile Money
-          </Badge>
-        );
       case "bank_transfer":
         return (
           <Badge variant="outline" className="text-purple-600">
             Bank Transfer
           </Badge>
         );
-      case "card":
-        return (
-          <Badge variant="outline" className="text-orange-600">
-            Card
-          </Badge>
-        );
       case "check":
         return (
           <Badge variant="outline" className="text-gray-600">
             Check
+          </Badge>
+        );
+      case "paystack":
+        return (
+          <Badge variant="outline" className="text-blue-600">
+            Paystack
           </Badge>
         );
       default:
@@ -415,178 +716,6 @@ export default function PaymentsPage() {
                         <IconDownload className="h-4 w-4" />
                         Export
                       </Button>
-                      <Dialog
-                        open={isDialogOpen}
-                        onOpenChange={setIsDialogOpen}
-                      >
-                        <DialogTrigger asChild>
-                          <Button className="flex items-center gap-2">
-                            <IconPlus className="h-4 w-4" />
-                            Add Payment
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
-                          <DialogHeader>
-                            <DialogTitle>Add New Payment Record</DialogTitle>
-                          </DialogHeader>
-                          <form onSubmit={handleSubmit} className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="bookingId">Booking ID *</Label>
-                                <Input
-                                  id="bookingId"
-                                  value={formData.bookingId}
-                                  onChange={(e) =>
-                                    setFormData({
-                                      ...formData,
-                                      bookingId: e.target.value,
-                                    })
-                                  }
-                                  required
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="amount">Amount (₵) *</Label>
-                                <Input
-                                  id="amount"
-                                  type="number"
-                                  step="0.01"
-                                  value={formData.amount}
-                                  onChange={(e) =>
-                                    setFormData({
-                                      ...formData,
-                                      amount: e.target.value,
-                                    })
-                                  }
-                                  required
-                                />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="customerName">
-                                  Customer Name *
-                                </Label>
-                                <Input
-                                  id="customerName"
-                                  value={formData.customerName}
-                                  onChange={(e) =>
-                                    setFormData({
-                                      ...formData,
-                                      customerName: e.target.value,
-                                    })
-                                  }
-                                  required
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="customerEmail">
-                                  Customer Email
-                                </Label>
-                                <Input
-                                  id="customerEmail"
-                                  type="email"
-                                  value={formData.customerEmail}
-                                  onChange={(e) =>
-                                    setFormData({
-                                      ...formData,
-                                      customerEmail: e.target.value,
-                                    })
-                                  }
-                                />
-                              </div>
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label htmlFor="eventTitle">Event Title</Label>
-                              <Input
-                                id="eventTitle"
-                                value={formData.eventTitle}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    eventTitle: e.target.value,
-                                  })
-                                }
-                              />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="paymentMethod">
-                                  Payment Method *
-                                </Label>
-                                <Select
-                                  value={formData.paymentMethod}
-                                  onValueChange={(value) =>
-                                    setFormData({
-                                      ...formData,
-                                      paymentMethod: value,
-                                    })
-                                  }
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select method" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {paymentMethods.map((method) => (
-                                      <SelectItem key={method} value={method}>
-                                        {method
-                                          .replace("_", " ")
-                                          .replace(/\b\w/g, (l) =>
-                                            l.toUpperCase()
-                                          )}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="dueDate">Due Date</Label>
-                                <Input
-                                  id="dueDate"
-                                  type="date"
-                                  value={formData.dueDate}
-                                  onChange={(e) =>
-                                    setFormData({
-                                      ...formData,
-                                      dueDate: e.target.value,
-                                    })
-                                  }
-                                />
-                              </div>
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label htmlFor="notes">Notes</Label>
-                              <Input
-                                id="notes"
-                                value={formData.notes}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    notes: e.target.value,
-                                  })
-                                }
-                              />
-                            </div>
-
-                            <div className="flex gap-2 pt-4">
-                              <Button type="submit" className="flex-1">
-                                Add Payment
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setIsDialogOpen(false)}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </form>
-                        </DialogContent>
-                      </Dialog>
                     </div>
                   </div>
 
@@ -750,8 +879,8 @@ export default function PaymentsPage() {
                           <TableRow>
                             <TableHead>Transaction</TableHead>
                             <TableHead>Customer</TableHead>
-                            <TableHead>Event</TableHead>
-                            <TableHead>Amount</TableHead>
+                            <TableHead>Event/Order</TableHead>
+                            <TableHead>Payment Details</TableHead>
                             <TableHead>Method</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Date</TableHead>
@@ -760,101 +889,204 @@ export default function PaymentsPage() {
                         </TableHeader>
                         <TableBody>
                           {filteredAndSortedPayments.map((payment) => (
-                            <TableRow key={payment.id}>
-                              <TableCell>
-                                <div>
-                                  <div className="font-medium">
-                                    {payment.bookingId}
+                            <Fragment key={payment.id}>
+                              <TableRow>
+                                <TableCell>
+                                  <div>
+                                    <div className="font-medium">
+                                      {payment.bookingId || payment.order_id}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {payment.transactionId}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {payment.receiptNumber}
+                                    </div>
                                   </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div>
+                                    <div className="font-medium">
+                                      {payment.customerName ||
+                                        payment.booking_customer ||
+                                        payment.order_customer}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {payment.customerEmail}
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
                                   <div className="text-sm text-muted-foreground">
-                                    {payment.transactionId}
+                                    {payment.eventTitle ||
+                                      payment.booking_title ||
+                                      payment.order_number}
                                   </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {payment.receiptNumber}
+                                  {payment.booking_id && (
+                                    <div className="text-xs text-blue-600">
+                                      Booking: {payment.booking_id}
+                                    </div>
+                                  )}
+                                  {payment.order_id && (
+                                    <div className="text-xs text-green-600">
+                                      Order: {payment.order_id}
+                                    </div>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="space-y-1">
+                                    {/* Total Due */}
+                                    <div className="font-medium text-sm">
+                                      Total: ₵{payment.amount.toFixed(2)}
+                                    </div>
+
+                                    {/* Amount Paid */}
+                                    <div className="text-sm text-green-600">
+                                      Paid: ₵
+                                      {calculateAmountPaid(payment).toFixed(2)}
+                                    </div>
+
+                                    {/* Remaining */}
+                                    <div className="text-sm text-red-600">
+                                      Remaining: ₵
+                                      {calculateRemaining(payment).toFixed(2)}
+                                    </div>
+
+                                    {/* Progress Bar - Show for all payments with transactions */}
+                                    {payment.payment_history?.transactions &&
+                                      payment.payment_history.transactions
+                                        .length > 0 && (
+                                        <div className="mt-2">
+                                          <div className="flex justify-between text-xs text-gray-600 mb-1">
+                                            <span>Progress</span>
+                                            <span>
+                                              {Math.round(
+                                                calculateProgress(payment)
+                                              )}
+                                              %
+                                            </span>
+                                          </div>
+                                          <div className="w-full bg-gray-200 rounded-full h-2">
+                                            <div
+                                              className={`h-2 rounded-full transition-all duration-300 ${
+                                                calculateProgress(payment) ===
+                                                100
+                                                  ? "bg-green-500"
+                                                  : "bg-blue-600"
+                                              }`}
+                                              style={{
+                                                width: `${calculateProgress(
+                                                  payment
+                                                )}%`,
+                                              }}
+                                            ></div>
+                                          </div>
+                                        </div>
+                                      )}
                                   </div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div>
-                                  <div className="font-medium">
-                                    {payment.customerName}
+                                </TableCell>
+                                <TableCell>
+                                  {getPaymentMethodBadge(payment.method)}
+                                </TableCell>
+                                <TableCell>
+                                  {getStatusBadge(payment.status)}
+                                </TableCell>
+                                <TableCell>
+                                  <div>
+                                    <div className="text-sm font-medium">
+                                      {formatDate(
+                                        payment.created_at ||
+                                          payment.paymentDate ||
+                                          ""
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {payment.provider === "paystack"
+                                        ? "Online"
+                                        : "Manual"}
+                                    </div>
                                   </div>
-                                  <div className="text-sm text-muted-foreground">
-                                    {payment.customerEmail}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex gap-2">
+                                    <Button variant="outline" size="sm">
+                                      <IconEye className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        openPartialPaymentDialog(payment)
+                                      }
+                                      className="text-blue-600 hover:text-blue-700"
+                                      title="Add partial payment"
+                                    >
+                                      <IconPlus className="h-4 w-4" />
+                                    </Button>
+                                    {/* Show history toggle button if there are transactions */}
+                                    {payment.payment_history?.transactions &&
+                                      payment.payment_history.transactions
+                                        .length > 0 && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() =>
+                                            togglePaymentExpansion(payment.id)
+                                          }
+                                          className="text-purple-600 hover:text-purple-700"
+                                          title="View payment history"
+                                        >
+                                          {expandedPayments.has(payment.id) ? (
+                                            <IconChevronDown className="h-4 w-4" />
+                                          ) : (
+                                            <IconChevronRight className="h-4 w-4" />
+                                          )}
+                                        </Button>
+                                      )}
+                                    {payment.status !== "completed" &&
+                                      payment.status !== "cancelled" && (
+                                        <Select
+                                          value={payment.status}
+                                          onValueChange={(
+                                            value: Payment["status"]
+                                          ) =>
+                                            handleUpdatePaymentStatus(
+                                              payment.id,
+                                              value
+                                            )
+                                          }
+                                        >
+                                          <SelectTrigger className="w-[100px] h-8">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {statuses.map((status) => (
+                                              <SelectItem
+                                                key={status}
+                                                value={status}
+                                              >
+                                                {status
+                                                  .charAt(0)
+                                                  .toUpperCase() +
+                                                  status.slice(1)}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      )}
                                   </div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm text-muted-foreground">
-                                  {payment.eventTitle}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="font-medium">
-                                  ₵{payment.amount.toFixed(2)}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {payment.currency}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                {getPaymentMethodBadge(payment.paymentMethod)}
-                              </TableCell>
-                              <TableCell>
-                                {getStatusBadge(payment.status)}
-                              </TableCell>
-                              <TableCell>
-                                <div>
-                                  <div className="text-sm font-medium">
-                                    {formatDate(payment.paymentDate)}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    Due: {formatDate(payment.dueDate)}
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex gap-2">
-                                  <Button variant="outline" size="sm">
-                                    <IconEye className="h-4 w-4" />
-                                  </Button>
-                                  {payment.status !== "completed" &&
-                                    payment.status !== "cancelled" && (
-                                      <Select
-                                        value={payment.status}
-                                        onValueChange={(
-                                          value: Payment["status"]
-                                        ) =>
-                                          handleStatusChange(payment.id, value)
-                                        }
-                                      >
-                                        <SelectTrigger className="w-[100px] h-8">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {statuses.map((status) => (
-                                            <SelectItem
-                                              key={status}
-                                              value={status}
-                                            >
-                                              {status.charAt(0).toUpperCase() +
-                                                status.slice(1)}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    )}
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleDelete(payment.id)}
-                                    className="text-red-600 hover:text-red-700"
-                                  >
-                                    <IconX className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
+                                </TableCell>
+                              </TableRow>
+                              {expandedPayments.has(payment.id) && (
+                                <TableRow>
+                                  <TableCell colSpan={8} className="p-0">
+                                    <div className="p-4 bg-gray-50 border-t">
+                                      {formatPaymentHistory(payment)}
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </Fragment>
                           ))}
                         </TableBody>
                       </Table>
@@ -878,6 +1110,144 @@ export default function PaymentsPage() {
           </div>
         </SidebarInset>
       </SidebarProvider>
+
+      {/* Partial Payment Dialog */}
+      <Dialog
+        open={isPartialPaymentDialogOpen}
+        onOpenChange={setIsPartialPaymentDialogOpen}
+      >
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Add Partial Payment</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddPartialPayment} className="space-y-4">
+            {selectedPaymentForPartial && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-medium mb-2">Payment Details</h4>
+                <div className="text-sm text-gray-600 space-y-1">
+                  <p>
+                    <strong>Customer:</strong>{" "}
+                    {selectedPaymentForPartial.customerName ||
+                      selectedPaymentForPartial.booking_customer ||
+                      selectedPaymentForPartial.order_customer}
+                  </p>
+                  <p>
+                    <strong>Total Due:</strong> ₵
+                    {selectedPaymentForPartial.amount.toFixed(2)}
+                  </p>
+                  <p>
+                    <strong>Amount Paid:</strong> ₵
+                    {calculateAmountPaid(selectedPaymentForPartial).toFixed(2)}
+                  </p>
+                  <p>
+                    <strong>Remaining:</strong> ₵
+                    {calculateRemaining(selectedPaymentForPartial).toFixed(2)}
+                  </p>
+                  <p>
+                    <strong>Status:</strong> {selectedPaymentForPartial.status}
+                  </p>
+                  {selectedPaymentForPartial.booking_title && (
+                    <p>
+                      <strong>Booking:</strong>{" "}
+                      {selectedPaymentForPartial.booking_title}
+                    </p>
+                  )}
+                  {selectedPaymentForPartial.order_number && (
+                    <p>
+                      <strong>Order:</strong>{" "}
+                      {selectedPaymentForPartial.order_number}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="partialAmount">Amount (₵) *</Label>
+                <Input
+                  id="partialAmount"
+                  type="number"
+                  step="0.01"
+                  value={partialPaymentData.amount}
+                  onChange={(e) =>
+                    setPartialPaymentData({
+                      ...partialPaymentData,
+                      amount: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="partialMethod">Payment Method *</Label>
+                <Select
+                  value={partialPaymentData.method}
+                  onValueChange={(value) =>
+                    setPartialPaymentData({
+                      ...partialPaymentData,
+                      method: value as
+                        | "cash"
+                        | "bank_transfer"
+                        | "check"
+                        | "paystack",
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {paymentMethods.map((method) => (
+                      <SelectItem key={method} value={method}>
+                        {method
+                          .replace("_", " ")
+                          .replace(/\b\w/g, (l) => l.toUpperCase())}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="partialNotes">Notes</Label>
+              <Input
+                id="partialNotes"
+                value={partialPaymentData.notes}
+                onChange={(e) =>
+                  setPartialPaymentData({
+                    ...partialPaymentData,
+                    notes: e.target.value,
+                  })
+                }
+                placeholder="Optional notes about this payment"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button type="submit" className="flex-1">
+                Add Payment
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsPartialPaymentDialogOpen(false);
+                  setSelectedPaymentForPartial(null);
+                  setPartialPaymentData({
+                    amount: "",
+                    method: "cash",
+                    notes: "",
+                  });
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </ProtectedRoute>
   );
 }

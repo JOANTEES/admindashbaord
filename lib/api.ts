@@ -498,30 +498,83 @@ class ApiClient {
     });
   }
 
-  // Payments endpoints - these don't exist yet
+  // Payments endpoints - updated for new payment system
   async getPayments() {
     return this.request("/payments");
   }
 
-  async addPayment(payload: {
-    booking_id: number;
-    amount: number;
-    method: "cash" | "bank_transfer" | "check";
-    currency?: string;
-    status?: "pending" | "completed" | "failed" | "refunded" | "cancelled";
-    notes?: string;
-  }) {
-    return this.request("/payments", {
-      method: "POST",
+  async addPartialPayment(
+    id: string | number,
+    payload: {
+      amount: number;
+      method: "cash" | "bank_transfer" | "check" | "paystack";
+      notes?: string;
+    }
+  ) {
+    return this.request(`/payments/${id}/add-payment`, {
+      method: "PATCH",
       body: JSON.stringify(payload),
     });
   }
 
   async updatePaymentStatus(
     id: string | number,
-    status: "pending" | "completed" | "failed" | "refunded" | "cancelled"
+    status:
+      | "pending"
+      | "completed"
+      | "failed"
+      | "refunded"
+      | "cancelled"
+      | "partial"
   ) {
     return this.request(`/payments/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  // Order Management API methods
+  async getOrders(params?: {
+    status?: string;
+    paymentStatus?: string;
+    deliveryMethod?: string;
+    paymentMethod?: string;
+    startDate?: string;
+    endDate?: string;
+    q?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return this.request(`/orders/admin${queryString ? `?${queryString}` : ""}`);
+  }
+
+  async getOrder(id: string | number) {
+    return this.request(`/orders/${id}`);
+  }
+
+  async updateOrderStatus(
+    id: string | number,
+    status:
+      | "pending"
+      | "confirmed"
+      | "processing"
+      | "ready_for_pickup"
+      | "shipped"
+      | "out_for_delivery"
+      | "delivered"
+      | "cancelled"
+      | "refunded"
+  ) {
+    return this.request(`/orders/${id}/status`, {
       method: "PATCH",
       body: JSON.stringify({ status }),
     });
