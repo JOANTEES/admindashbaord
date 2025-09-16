@@ -14,32 +14,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   IconSettings,
   IconCurrency,
   IconTruck,
-  IconMapPin,
-  IconPackage,
   IconLoader,
   IconDeviceFloppy,
   IconRefresh,
 } from "@tabler/icons-react";
 import { ProtectedRoute } from "@/components/protected-route";
-import { apiClient } from "@/lib/api";
+import { apiClient, AppSettings } from "@/lib/api";
 import { toast } from "sonner";
-
-interface AppSettings {
-  id: number;
-  taxRate: number;
-  freeShippingThreshold: number;
-  largeOrderQuantityThreshold: number;
-  largeOrderDeliveryFee: number;
-  currencySymbol: string;
-  currencyCode: string;
-  updatedAt: string;
-}
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings>({
@@ -94,7 +80,7 @@ export default function SettingsPage() {
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      const response = await apiClient.updateAppSettings(settings);
+      await apiClient.updateAppSettings(settings);
       toast.success("Settings updated successfully");
       setOriginalSettings(settings);
       setHasChanges(false);

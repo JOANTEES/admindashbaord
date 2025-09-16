@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -33,14 +33,12 @@ import {
   IconSearch,
   IconPackage,
   IconTruck,
-  IconMapPin,
   IconLoader,
   IconFilter,
   IconRefresh,
   IconEye,
 } from "@tabler/icons-react";
 import { ProtectedRoute } from "@/components/protected-route";
-import { apiClient } from "@/lib/api";
 import { toast } from "sonner";
 
 interface Order {
@@ -98,7 +96,6 @@ export default function OrdersPage() {
   const [sortBy, setSortBy] = useState<
     "date" | "customer" | "total" | "status"
   >("date");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [summary, setSummary] = useState<OrderSummary>({
     totalOrders: 0,
     pendingOrders: 0,
@@ -107,11 +104,7 @@ export default function OrdersPage() {
     averageOrderValue: 0,
   });
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setIsLoading(true);
       // Note: Order management endpoints are "Coming Soon" according to backend README
@@ -187,7 +180,11 @@ export default function OrdersPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const calculateSummary = (orders: Order[]) => {
     const totalOrders = orders.length;
@@ -291,13 +288,7 @@ export default function OrdersPage() {
           bValue = new Date(b.createdAt).getTime();
       }
 
-      return sortOrder === "asc"
-        ? aValue > bValue
-          ? 1
-          : -1
-        : aValue < bValue
-        ? 1
-        : -1;
+      return aValue < bValue ? 1 : -1;
     });
 
   if (isLoading) {
@@ -495,7 +486,9 @@ export default function OrdersPage() {
                         </Select>
                         <Select
                           value={sortBy}
-                          onValueChange={(value: any) => setSortBy(value)}
+                          onValueChange={(
+                            value: "date" | "customer" | "total" | "status"
+                          ) => setSortBy(value)}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Sort by" />

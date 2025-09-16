@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -46,7 +45,6 @@ import {
   IconEdit,
   IconTrash,
   IconMapPin,
-  IconClock,
   IconPhone,
   IconMail,
   IconLoader,
@@ -243,7 +241,15 @@ export default function PickupLocationsPage() {
       additionalInstructions: location.additionalInstructions || "",
       contactPhone: location.contactPhone,
       contactEmail: location.contactEmail,
-      operatingHours: location.operatingHours,
+      operatingHours: location.operatingHours as {
+        monday: string;
+        tuesday: string;
+        wednesday: string;
+        thursday: string;
+        friday: string;
+        saturday: string;
+        sunday: string;
+      },
     });
     setIsDialogOpen(true);
   };

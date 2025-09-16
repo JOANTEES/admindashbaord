@@ -578,18 +578,10 @@ class ApiClient {
 
   // App Settings API methods
   async getAppSettings() {
-    return this.request("/admin/settings");
+    return this.request<AppSettingsResponse>("/admin/settings");
   }
 
-  async updateAppSettings(data: {
-    taxRate?: number;
-    freeShippingThreshold?: number;
-    largeOrderQuantityThreshold?: number;
-    largeOrderDeliveryFee?: number;
-    pickupAddress?: string;
-    currencySymbol?: string;
-    currencyCode?: string;
-  }) {
+  async updateAppSettings(data: Partial<AppSettings>) {
     return this.request("/admin/settings", {
       method: "PUT",
       body: JSON.stringify(data),
@@ -889,4 +881,21 @@ export interface Product {
   delivery_eligible: boolean;
   pickup_eligible: boolean;
   created_at: string;
+}
+
+export interface AppSettings {
+  id: number;
+  taxRate: number;
+  freeShippingThreshold: number;
+  largeOrderQuantityThreshold: number;
+  largeOrderDeliveryFee: number;
+  currencySymbol: string;
+  currencyCode: string;
+  updatedAt: string;
+}
+
+export interface AppSettingsResponse {
+  success: boolean;
+  message: string;
+  settings: AppSettings;
 }

@@ -3,15 +3,20 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { apiClient } from "@/lib/api";
+
+interface TestResult {
+  name: string;
+  status: string;
+  data: string;
+}
 
 export default function TestApiPage() {
-  const [results, setResults] = useState<any>(null);
+  const [results, setResults] = useState<TestResult[] | null>(null);
   const [loading, setLoading] = useState(false);
 
   const testEndpoints = async () => {
     setLoading(true);
-    const tests = [];
+    const tests: TestResult[] = [];
 
     // Test 1: Basic API health
     try {
@@ -102,7 +107,7 @@ export default function TestApiPage() {
 
           {results && (
             <div className="mt-6 space-y-4">
-              {results.map((test: any, index: number) => (
+              {results.map((test, index: number) => (
                 <Card key={index}>
                   <CardHeader>
                     <CardTitle className="text-lg">{test.name}</CardTitle>
