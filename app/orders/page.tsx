@@ -40,6 +40,7 @@ import {
 } from "@tabler/icons-react";
 import { ProtectedRoute } from "@/components/protected-route";
 import { toast } from "sonner";
+import { apiClient } from "@/lib/api";
 
 interface Order {
   id: string;
@@ -260,56 +261,6 @@ export default function OrdersPage() {
     } catch (error) {
       console.error("Failed to update order status:", error);
       toast.error("Failed to update order status");
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "bg-yellow-500";
-      case "confirmed":
-        return "bg-blue-500";
-      case "processing":
-        return "bg-purple-500";
-      case "ready_for_pickup":
-        return "bg-orange-500";
-      case "shipped":
-        return "bg-cyan-500";
-      case "out_for_delivery":
-        return "bg-indigo-500";
-      case "delivered":
-        return "bg-green-500";
-      case "cancelled":
-        return "bg-red-500";
-      case "refunded":
-        return "bg-gray-500";
-      default:
-        return "bg-gray-500";
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "Pending";
-      case "confirmed":
-        return "Confirmed";
-      case "processing":
-        return "Processing";
-      case "ready_for_pickup":
-        return "Ready for Pickup";
-      case "shipped":
-        return "Shipped";
-      case "out_for_delivery":
-        return "Out for Delivery";
-      case "delivered":
-        return "Delivered";
-      case "cancelled":
-        return "Cancelled";
-      case "refunded":
-        return "Refunded";
-      default:
-        return status;
     }
   };
 
