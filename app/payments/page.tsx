@@ -312,11 +312,23 @@ export default function PaymentsPage() {
     }
 
     try {
-      await apiClient.addPartialPayment(selectedPaymentForPartial.id, {
-        amount: parseFloat(partialPaymentData.amount),
-        method: partialPaymentData.method,
-        notes: partialPaymentData.notes || undefined,
-      });
+      const resp = await apiClient.addPartialPayment(
+        selectedPaymentForPartial.id,
+        {
+          amount: parseFloat(partialPaymentData.amount),
+          method: partialPaymentData.method,
+          notes: partialPaymentData.notes || undefined,
+        }
+      );
+      const possibleError = (resp as unknown as { error?: string }).error;
+      if (possibleError) {
+        let message = possibleError;
+        try {
+          const parsed = JSON.parse(possibleError) as { message?: string };
+          if (parsed.message) message = parsed.message;
+        } catch {}
+        throw new Error(message);
+      }
 
       toast.success("Partial payment added successfully");
       setIsPartialPaymentDialogOpen(false);
@@ -412,7 +424,7 @@ export default function PaymentsPage() {
     status: Payment["status"]
   ) => {
     try {
-      await apiClient.updatePaymentStatus(
+      const resp = await apiClient.updatePaymentStatus(
         paymentId,
         status as
           | "completed"
@@ -422,6 +434,15 @@ export default function PaymentsPage() {
           | "cancelled"
           | "partial"
       );
+      const possibleError = (resp as unknown as { error?: string }).error;
+      if (possibleError) {
+        let message = possibleError;
+        try {
+          const parsed = JSON.parse(possibleError) as { message?: string };
+          if (parsed.message) message = parsed.message;
+        } catch {}
+        throw new Error(message);
+      }
       toast.success("Payment status updated successfully");
 
       // Reload payments to get updated data

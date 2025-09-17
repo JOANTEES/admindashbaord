@@ -195,6 +195,16 @@ export default function PickupLocationsPage() {
           }
         );
 
+        const possibleError = (response as unknown as { error?: string }).error;
+        if (possibleError) {
+          let message = possibleError;
+          try {
+            const parsed = JSON.parse(possibleError) as { message?: string };
+            if (parsed.message) message = parsed.message;
+          } catch {}
+          throw new Error(message);
+        }
+
         if (response.data) {
           toast.success("Pickup location updated successfully");
           fetchLocations();
@@ -214,6 +224,16 @@ export default function PickupLocationsPage() {
           contactEmail: formData.contactEmail,
           operatingHours: formData.operatingHours,
         });
+
+        const possibleError = (response as unknown as { error?: string }).error;
+        if (possibleError) {
+          let message = possibleError;
+          try {
+            const parsed = JSON.parse(possibleError) as { message?: string };
+            if (parsed.message) message = parsed.message;
+          } catch {}
+          throw new Error(message);
+        }
 
         if (response.data) {
           toast.success("Pickup location created successfully");
@@ -261,7 +281,16 @@ export default function PickupLocationsPage() {
 
     try {
       setIsDeleting(id);
-      await apiClient.deletePickupLocation(id);
+      const resp = await apiClient.deletePickupLocation(id);
+      const possibleError = (resp as unknown as { error?: string }).error;
+      if (possibleError) {
+        let message = possibleError;
+        try {
+          const parsed = JSON.parse(possibleError) as { message?: string };
+          if (parsed.message) message = parsed.message;
+        } catch {}
+        throw new Error(message);
+      }
       toast.success("Pickup location deleted successfully");
       fetchLocations();
     } catch (error) {

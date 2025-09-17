@@ -80,13 +80,26 @@ export default function SettingsPage() {
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      await apiClient.updateAppSettings(settings);
+      const resp = await apiClient.updateAppSettings(settings);
+      const possibleError = (resp as unknown as { error?: string }).error;
+      if (possibleError) {
+        let message = possibleError;
+        try {
+          const parsed = JSON.parse(possibleError) as { message?: string };
+          if (parsed.message) message = parsed.message;
+        } catch {}
+        throw new Error(message);
+      }
       toast.success("Settings updated successfully");
       setOriginalSettings(settings);
       setHasChanges(false);
     } catch (error) {
       console.error("Error saving settings:", error);
-      toast.error("Failed to save settings");
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Failed to save settings";
+      toast.error(message);
     } finally {
       setIsSaving(false);
     }

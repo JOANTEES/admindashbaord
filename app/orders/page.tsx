@@ -49,9 +49,11 @@ interface Order {
   customerEmail: string;
   customerPhone: string;
   items: OrderItem[];
+  itemsCount?: number;
   deliveryMethod: "pickup" | "delivery";
   deliveryZoneId?: string;
   deliveryZoneName?: string;
+  pickupLocationName?: string;
   deliveryAddress?: string;
   subtotal: number;
   tax: number;
@@ -65,9 +67,10 @@ interface Order {
     | "shipped"
     | "out_for_delivery"
     | "delivered"
+    | "completed"
     | "cancelled"
     | "refunded";
-  paymentStatus: "pending" | "paid" | "failed" | "refunded";
+  paymentStatus: "pending" | "partial" | "paid" | "failed" | "refunded";
   createdAt: string;
   updatedAt: string;
 }
@@ -110,104 +113,119 @@ export default function OrdersPage() {
   const fetchOrders = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await apiClient.getOrders();
+      const response = await apiClient.getOrders({ page: 1, limit: 20 });
+      if ((response as unknown as { error?: string }).error) {
+        throw new Error((response as unknown as { error?: string }).error);
+      }
       const payload = response.data as {
         orders?: Array<Record<string, unknown>>;
       };
 
       if (payload.orders) {
-        const mapped: Order[] = payload.orders.map((o) => ({
-          id: String(o.id ?? ""),
-          orderNumber: String(o.orderNumber ?? ""),
-          customerName: String(o.customerName ?? ""),
-          customerEmail: String(o.customerEmail ?? ""),
-          customerPhone: String(o.customerPhone ?? ""),
-          items: [], // Items will be loaded separately if needed
-          deliveryMethod: String(o.deliveryMethod ?? "delivery") as
-            | "pickup"
-            | "delivery",
-          deliveryZoneId: String(o.deliveryZoneId ?? ""),
-          deliveryZoneName: String(o.deliveryZoneName ?? ""),
-          deliveryAddress: String(o.deliveryAddress ?? ""),
-          subtotal: Number(o.subtotal ?? 0),
-          tax: Number(o.tax ?? 0),
-          shipping: Number(o.shipping ?? 0),
-          total: Number(o.total ?? 0),
-          status: String(o.status ?? "pending") as Order["status"],
-          paymentStatus: String(
-            o.paymentStatus ?? "pending"
-          ) as Order["paymentStatus"],
-          createdAt: String(o.createdAt ?? ""),
-          updatedAt: String(o.updatedAt ?? ""),
-        }));
+        const mapped: Order[] = payload.orders.map((o) => {
+          const totals =
+            (
+              o as {
+                totals?: {
+                  subtotal?: unknown;
+                  taxAmount?: unknown;
+                  shippingFee?: unknown;
+                  totalAmount?: unknown;
+                };
+              }
+            ).totals || {};
+
+          const orderNumber = String(
+            (o as { orderNumber?: unknown }).orderNumber ??
+              (o as { order_number?: unknown }).order_number ??
+              ""
+          );
+
+          const customerEmail = String(
+            (o as { customerEmail?: unknown }).customerEmail ??
+              (o as { customer_email?: unknown }).customer_email ??
+              ""
+          );
+
+          const customerName = String(
+            (o as { customer_name?: unknown }).customer_name ?? customerEmail
+          );
+
+          return {
+            id: String(o.id ?? ""),
+            orderNumber,
+            customerName,
+            customerEmail,
+            customerPhone: String(
+              (o as { customer_phone?: unknown }).customer_phone ?? ""
+            ),
+            items: [],
+            itemsCount: Number((o as { itemsCount?: unknown }).itemsCount ?? 0),
+            deliveryMethod: String(
+              (o as { deliveryMethod?: unknown }).deliveryMethod ??
+                (o as { delivery_method?: unknown }).delivery_method ??
+                "delivery"
+            ) as "pickup" | "delivery",
+            deliveryZoneId: String(
+              (o as { delivery_zone_id?: unknown }).delivery_zone_id ?? ""
+            ),
+            deliveryZoneName: String(
+              (o as { deliveryZoneName?: unknown }).deliveryZoneName ??
+                (o as { delivery_zone_name?: unknown }).delivery_zone_name ??
+                ""
+            ),
+            pickupLocationName: String(
+              (o as { pickupLocationName?: unknown }).pickupLocationName ?? ""
+            ),
+            deliveryAddress: String(
+              (o as { delivery_address?: unknown }).delivery_address ?? ""
+            ),
+            subtotal: Number(
+              (totals as { subtotal?: unknown }).subtotal ??
+                (o as { subtotal_amount?: unknown }).subtotal_amount ??
+                0
+            ),
+            tax: Number(
+              (totals as { taxAmount?: unknown }).taxAmount ??
+                (o as { tax_amount?: unknown }).tax_amount ??
+                0
+            ),
+            shipping: Number(
+              (totals as { shippingFee?: unknown }).shippingFee ??
+                (o as { shipping_amount?: unknown }).shipping_amount ??
+                0
+            ),
+            total: Number(
+              (totals as { totalAmount?: unknown }).totalAmount ??
+                (o as { total_amount?: unknown }).total_amount ??
+                (o as { total?: unknown }).total ??
+                0
+            ),
+            status: String(
+              (o as { status?: unknown }).status ?? "pending"
+            ) as Order["status"],
+            paymentStatus: String(
+              (o as { paymentStatus?: unknown }).paymentStatus ??
+                (o as { payment_status?: unknown }).payment_status ??
+                "pending"
+            ) as Order["paymentStatus"],
+            createdAt: String(
+              (o as { createdAt?: unknown }).createdAt ??
+                (o as { created_at?: unknown }).created_at ??
+                ""
+            ),
+            updatedAt: String(
+              (o as { updatedAt?: unknown }).updatedAt ??
+                (o as { updated_at?: unknown }).updated_at ??
+                ""
+            ),
+          };
+        });
         setOrders(mapped);
+        calculateSummary(mapped);
       } else {
         setOrders([]);
       }
-
-      // Fallback to mock data if API fails
-      const mockOrders: Order[] = [
-        {
-          id: "1",
-          orderNumber: "ORD-001",
-          customerName: "John Doe",
-          customerEmail: "john@example.com",
-          customerPhone: "+233 24 123 4567",
-          items: [
-            {
-              id: "1",
-              productName: "Classic White T-Shirt",
-              quantity: 2,
-              price: 29.99,
-              size: "M",
-              color: "White",
-              subtotal: 59.98,
-            },
-          ],
-          deliveryMethod: "delivery",
-          deliveryZoneId: "1",
-          deliveryZoneName: "East Legon",
-          deliveryAddress: "123 Main St, East Legon, Accra",
-          subtotal: 59.98,
-          tax: 6.0,
-          shipping: 15.0,
-          total: 80.98,
-          status: "pending",
-          paymentStatus: "paid",
-          createdAt: "2024-01-16T10:30:00.000Z",
-          updatedAt: "2024-01-16T10:30:00.000Z",
-        },
-        {
-          id: "2",
-          orderNumber: "ORD-002",
-          customerName: "Jane Smith",
-          customerEmail: "jane@example.com",
-          customerPhone: "+233 24 987 6543",
-          items: [
-            {
-              id: "2",
-              productName: "Denim Jeans",
-              quantity: 1,
-              price: 79.99,
-              size: "32",
-              color: "Blue",
-              subtotal: 79.99,
-            },
-          ],
-          deliveryMethod: "pickup",
-          subtotal: 79.99,
-          tax: 8.0,
-          shipping: 0.0,
-          total: 87.99,
-          status: "delivered",
-          paymentStatus: "paid",
-          createdAt: "2024-01-15T14:20:00.000Z",
-          updatedAt: "2024-01-16T09:15:00.000Z",
-        },
-      ];
-
-      setOrders(mockOrders);
-      calculateSummary(mockOrders);
     } catch (error) {
       console.error("Error fetching orders:", error);
       toast.error("Failed to load orders");
@@ -245,7 +263,17 @@ export default function OrdersPage() {
     newStatus: Order["status"]
   ) => {
     try {
-      await apiClient.updateOrderStatus(orderId, newStatus);
+      const resp = await apiClient.updateOrderStatus(orderId, newStatus);
+      const possibleError = (resp as unknown as { error?: string }).error;
+      if (possibleError) {
+        let message = possibleError;
+        try {
+          const parsed = JSON.parse(possibleError) as { message?: string };
+          if (parsed.message) message = parsed.message;
+        } catch {}
+        throw new Error(message);
+      }
+
       setOrders(
         orders.map((order) =>
           order.id === orderId
@@ -260,7 +288,11 @@ export default function OrdersPage() {
       toast.success(`Order status updated to ${newStatus}`);
     } catch (error) {
       console.error("Failed to update order status:", error);
-      toast.error("Failed to update order status");
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Failed to update order status";
+      toast.error(message);
     }
   };
 
@@ -563,13 +595,8 @@ export default function OrdersPage() {
                               </TableCell>
                               <TableCell>
                                 <div className="text-sm">
-                                  {order.items.length} item
-                                  {order.items.length !== 1 ? "s" : ""}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {order.items[0]?.productName}
-                                  {order.items.length > 1 &&
-                                    ` +${order.items.length - 1} more`}
+                                  {order.itemsCount ?? 0} item
+                                  {(order.itemsCount ?? 0) !== 1 ? "s" : ""}
                                 </div>
                               </TableCell>
                               <TableCell>
@@ -630,6 +657,9 @@ export default function OrdersPage() {
                                     </SelectItem>
                                     <SelectItem value="delivered">
                                       Delivered
+                                    </SelectItem>
+                                    <SelectItem value="completed">
+                                      Completed
                                     </SelectItem>
                                     <SelectItem value="cancelled">
                                       Cancelled

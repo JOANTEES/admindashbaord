@@ -571,6 +571,7 @@ class ApiClient {
       | "shipped"
       | "out_for_delivery"
       | "delivered"
+      | "completed"
       | "cancelled"
       | "refunded"
   ) {
