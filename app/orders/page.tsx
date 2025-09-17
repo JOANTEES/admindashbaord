@@ -118,7 +118,6 @@ export default function OrdersPage() {
 
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [orderDetail, setOrderDetail] = useState<Record<
     string,
     unknown
@@ -126,7 +125,6 @@ export default function OrdersPage() {
 
   const openOrderDetail = async (orderId: string) => {
     try {
-      setSelectedOrderId(orderId);
       setDetailLoading(true);
       setIsDetailOpen(true);
       const resp = await apiClient.getAdminOrder(orderId);
@@ -955,10 +953,12 @@ function OrderDetailDialog({
                 {deliveryMethod === "pickup" && pickupLocation && (
                   <div className="text-sm">
                     Pickup: {String(pickupLocation.name ?? "")}{" "}
-                    {pickupLocation.mapsLink && (
+                    {(pickupLocation as { mapsLink?: string }).mapsLink && (
                       <a
                         className="text-blue-600 underline ml-1"
-                        href={String(pickupLocation.mapsLink)}
+                        href={String(
+                          (pickupLocation as { mapsLink?: string }).mapsLink
+                        )}
                         target="_blank"
                         rel="noreferrer"
                       >
