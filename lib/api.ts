@@ -561,6 +561,11 @@ class ApiClient {
     return this.request(`/orders/${id}`);
   }
 
+  // Admin: get single order with full details
+  async getAdminOrder(id: string | number) {
+    return this.request(`/orders/admin/${id}`);
+  }
+
   async updateOrderStatus(
     id: string | number,
     status:
@@ -697,6 +702,7 @@ class ApiClient {
     contactPhone: string;
     contactEmail: string;
     operatingHours: Record<string, string>;
+    googleMapsLink?: string;
   }) {
     return this.request("/pickup-locations", {
       method: "POST",
@@ -717,6 +723,7 @@ class ApiClient {
       contactPhone: string;
       contactEmail: string;
       operatingHours: Record<string, string>;
+      googleMapsLink?: string;
     }>
   ) {
     return this.request(`/pickup-locations/${id}`, {

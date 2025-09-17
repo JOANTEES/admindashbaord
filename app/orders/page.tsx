@@ -12,6 +12,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -109,6 +115,40 @@ export default function OrdersPage() {
     totalRevenue: 0,
     averageOrderValue: 0,
   });
+
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [orderDetail, setOrderDetail] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
+
+  const openOrderDetail = async (orderId: string) => {
+    try {
+      setSelectedOrderId(orderId);
+      setDetailLoading(true);
+      setIsDetailOpen(true);
+      const resp = await apiClient.getAdminOrder(orderId);
+      const possibleError = (resp as unknown as { error?: string }).error;
+      if (possibleError) {
+        let message = possibleError;
+        try {
+          const parsed = JSON.parse(possibleError) as { message?: string };
+          if (parsed.message) message = parsed.message;
+        } catch {}
+        throw new Error(message);
+      }
+      const data = resp.data as { order?: Record<string, unknown> };
+      setOrderDetail(data.order ?? null);
+    } catch (e) {
+      console.error("Failed to load order detail", e);
+      setOrderDetail(null);
+      toast.error("Failed to load order details");
+    } finally {
+      setDetailLoading(false);
+    }
+  };
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -696,7 +736,11 @@ export default function OrdersPage() {
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <Button variant="outline" size="sm">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openOrderDetail(order.id)}
+                                >
                                   <IconEye className="h-4 w-4" />
                                 </Button>
                               </TableCell>
@@ -730,6 +774,249 @@ export default function OrdersPage() {
           </div>
         </SidebarInset>
       </SidebarProvider>
+      <OrderDetailDialog
+        open={isDetailOpen}
+        onOpenChange={setIsDetailOpen}
+        loading={detailLoading}
+        order={orderDetail}
+      />
     </ProtectedRoute>
+  );
+}
+
+// Detail Dialog UI mounted at end to avoid layout clipping
+function OrderDetailDialog({
+  open,
+  onOpenChange,
+  loading,
+  order,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  loading: boolean;
+  order: Record<string, unknown> | null;
+}) {
+  const totals = (order?.totals as Record<string, unknown>) || {};
+  const items = (order?.items as Array<Record<string, unknown>>) || [];
+  const deliveryMethod = String(order?.deliveryMethod ?? "");
+  const deliveryZone = order?.deliveryZone as Record<string, unknown> | null;
+  const pickupLocation = order?.pickupLocation as Record<
+    string,
+    unknown
+  > | null;
+  const deliveryAddress = order?.deliveryAddress as Record<
+    string,
+    unknown
+  > | null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[720px]">
+        <DialogHeader>
+          <DialogTitle>Order Details</DialogTitle>
+        </DialogHeader>
+        {loading ? (
+          <div className="py-10 text-center text-muted-foreground">
+            Loading...
+          </div>
+        ) : !order ? (
+          <div className="py-10 text-center text-red-600">
+            Failed to load order
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div className="text-sm text-muted-foreground">Order #</div>
+                <div className="text-lg font-semibold">
+                  {String(order.orderNumber ?? "")}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-muted-foreground">Status</div>
+                <div className="font-medium">{String(order.status ?? "")}</div>
+                <div className="text-xs text-muted-foreground">
+                  Payment: {String(order.paymentStatus ?? "")}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <div className="text-sm text-muted-foreground">Totals</div>
+                <div className="text-sm">
+                  Subtotal: ₵{Number(totals.subtotal ?? 0).toFixed(2)}
+                </div>
+                <div className="text-sm">
+                  Tax: ₵{Number(totals.taxAmount ?? 0).toFixed(2)}
+                </div>
+                <div className="text-sm">
+                  Shipping: ₵{Number(totals.shippingFee ?? 0).toFixed(2)}
+                </div>
+                <div className="text-sm font-medium">
+                  Total: ₵{Number(totals.totalAmount ?? 0).toFixed(2)}
+                </div>
+                <div className="text-sm text-green-600">
+                  Paid: ₵{Number(totals.amountPaid ?? 0).toFixed(2)}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm text-muted-foreground">Fulfillment</div>
+                <div className="text-sm">Method: {deliveryMethod}</div>
+                {deliveryMethod === "delivery" && deliveryZone && (
+                  <div className="text-sm">
+                    Zone: {String(deliveryZone.name ?? "")}
+                  </div>
+                )}
+                {deliveryMethod === "delivery" && deliveryAddress && (
+                  <div className="mt-2 space-y-0.5">
+                    <div className="text-sm font-medium">Delivery Address</div>
+                    <div className="text-sm">
+                      {String(
+                        ((deliveryAddress.area as string) ??
+                          (deliveryAddress as { areaName?: unknown })
+                            .areaName ??
+                          "") as string
+                      )}
+                      {(() => {
+                        const lm = (deliveryAddress as { landmark?: unknown })
+                          .landmark as string | undefined;
+                        return lm ? ` • ${lm}` : "";
+                      })()}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {String(
+                        ((deliveryAddress.city as string) ??
+                          (deliveryAddress as { cityName?: unknown })
+                            .cityName ??
+                          "") as string
+                      )}
+                      {(() => {
+                        const region = (
+                          deliveryAddress as {
+                            region?: unknown;
+                            regionName?: unknown;
+                          }
+                        ).region as string | undefined;
+                        const regionName = (
+                          deliveryAddress as {
+                            regionName?: unknown;
+                          }
+                        ).regionName as string | undefined;
+                        const r = region ?? regionName;
+                        return r ? `, ${r}` : "";
+                      })()}
+                    </div>
+                    {(() => {
+                      const phone = (
+                        deliveryAddress as {
+                          phone?: unknown;
+                          contactPhone?: unknown;
+                        }
+                      ).phone as string | undefined;
+                      const contactPhone = (
+                        deliveryAddress as {
+                          contactPhone?: unknown;
+                        }
+                      ).contactPhone as string | undefined;
+                      const p = phone ?? contactPhone;
+                      return p ? (
+                        <div className="text-xs">Phone: {p}</div>
+                      ) : null;
+                    })()}
+                    {(() => {
+                      const maps = (
+                        deliveryAddress as {
+                          maps?: unknown;
+                          googleMapsLink?: unknown;
+                        }
+                      ).maps as string | undefined;
+                      const googleMapsLink = (
+                        deliveryAddress as {
+                          googleMapsLink?: unknown;
+                        }
+                      ).googleMapsLink as string | undefined;
+                      const link = maps ?? googleMapsLink;
+                      return link ? (
+                        <div className="text-xs">
+                          <a
+                            className="text-blue-600 underline"
+                            href={link}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            View on map
+                          </a>
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+                )}
+                {deliveryMethod === "pickup" && pickupLocation && (
+                  <div className="text-sm">
+                    Pickup: {String(pickupLocation.name ?? "")}{" "}
+                    {pickupLocation.mapsLink && (
+                      <a
+                        className="text-blue-600 underline ml-1"
+                        href={String(pickupLocation.mapsLink)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        map
+                      </a>
+                    )}
+                  </div>
+                )}
+                <div className="text-xs text-muted-foreground mt-1">
+                  Created:{" "}
+                  {new Date(String(order.createdAt ?? "")).toLocaleString()}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-sm text-muted-foreground">Items</div>
+              <div className="space-y-2 max-h-64 overflow-auto pr-1">
+                {items.map((it, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between border rounded p-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm truncate">
+                        {String(it.productName ?? "")}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {(() => {
+                          const parts: string[] = [];
+                          const size = (it as { size?: unknown }).size as
+                            | string
+                            | null
+                            | undefined;
+                          const color = (it as { color?: unknown }).color as
+                            | string
+                            | null
+                            | undefined;
+                          const qty = Number(
+                            (it as { quantity?: unknown }).quantity ?? 0
+                          );
+                          if (size) parts.push(String(size));
+                          if (color) parts.push(String(color));
+                          parts.push(`qty ${qty}`);
+                          return parts.join(" • ");
+                        })()}
+                      </div>
+                    </div>
+                    <div className="text-right text-sm">
+                      ₵{Number(it.subtotal ?? 0).toFixed(2)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
