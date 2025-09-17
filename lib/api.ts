@@ -68,7 +68,7 @@ class ApiClient {
       }
 
       // Handle different response types
-      if (options.responseType === 'blob') {
+      if (options.responseType === "blob") {
         const blob = await response.blob();
         return { data: blob as T };
       }
@@ -82,7 +82,10 @@ class ApiClient {
   }
 
   // Public HTTP methods for general use
-  async get<T = unknown>(endpoint: string, options?: { headers?: Record<string, string>; responseType?: string }) {
+  async get<T = unknown>(
+    endpoint: string,
+    options?: { headers?: Record<string, string>; responseType?: string }
+  ) {
     return this.request<T>(endpoint, {
       method: "GET",
       headers: options?.headers,
@@ -90,7 +93,11 @@ class ApiClient {
     });
   }
 
-  async post<T = unknown>(endpoint: string, data?: unknown, options?: { headers?: Record<string, string> }) {
+  async post<T = unknown>(
+    endpoint: string,
+    data?: unknown,
+    options?: { headers?: Record<string, string> }
+  ) {
     return this.request<T>(endpoint, {
       method: "POST",
       body: data ? JSON.stringify(data) : undefined,
@@ -98,7 +105,11 @@ class ApiClient {
     });
   }
 
-  async put<T = unknown>(endpoint: string, data?: unknown, options?: { headers?: Record<string, string> }) {
+  async put<T = unknown>(
+    endpoint: string,
+    data?: unknown,
+    options?: { headers?: Record<string, string> }
+  ) {
     return this.request<T>(endpoint, {
       method: "PUT",
       body: data ? JSON.stringify(data) : undefined,
@@ -106,7 +117,10 @@ class ApiClient {
     });
   }
 
-  async delete<T = unknown>(endpoint: string, options?: { headers?: Record<string, string> }) {
+  async delete<T = unknown>(
+    endpoint: string,
+    options?: { headers?: Record<string, string> }
+  ) {
     return this.request<T>(endpoint, {
       method: "DELETE",
       headers: options?.headers,
@@ -288,6 +302,9 @@ class ApiClient {
     size: string;
     color: string;
     stock: number;
+    requiresSpecialDelivery?: boolean;
+    deliveryEligible?: boolean;
+    pickupEligible?: boolean;
   }) {
     // Map frontend fields to backend schema
     const payload = {
@@ -299,6 +316,15 @@ class ApiClient {
       color: productData.color,
       stock_quantity: productData.stock,
       image_url: productData.imageUrl,
+      requires_special_delivery: productData.requiresSpecialDelivery || false,
+      delivery_eligible:
+        productData.deliveryEligible !== undefined
+          ? productData.deliveryEligible
+          : true,
+      pickup_eligible:
+        productData.pickupEligible !== undefined
+          ? productData.pickupEligible
+          : true,
     } as Record<string, unknown>;
 
     // Remove undefined to avoid validation issues
@@ -325,6 +351,9 @@ class ApiClient {
       color: string;
       stock: number;
       imageUrl?: string;
+      requiresSpecialDelivery?: boolean;
+      deliveryEligible?: boolean;
+      pickupEligible?: boolean;
     }>
   ) {
     const payload = {
@@ -336,6 +365,9 @@ class ApiClient {
       color: updates.color,
       stock_quantity: updates.stock,
       image_url: updates.imageUrl,
+      requires_special_delivery: updates.requiresSpecialDelivery,
+      delivery_eligible: updates.deliveryEligible,
+      pickup_eligible: updates.pickupEligible,
     } as Record<string, unknown>;
 
     Object.keys(payload).forEach((key) => {
@@ -466,37 +498,243 @@ class ApiClient {
     });
   }
 
-  // Payments endpoints - these don't exist yet
+  // Payments endpoints - updated for new payment system
   async getPayments() {
     return this.request("/payments");
   }
 
-  async addPayment(payload: {
-    booking_id: number;
-    amount: number;
-    method: "cash" | "bank_transfer" | "check";
-    currency?: string;
-    status?: "pending" | "completed" | "failed" | "refunded" | "cancelled";
-    notes?: string;
-  }) {
-    return this.request("/payments", {
-      method: "POST",
+  async addPartialPayment(
+    id: string | number,
+    payload: {
+      amount: number;
+      method: "cash" | "bank_transfer" | "check" | "paystack";
+      notes?: string;
+    }
+  ) {
+    return this.request(`/payments/${id}/add-payment`, {
+      method: "PATCH",
       body: JSON.stringify(payload),
     });
   }
 
   async updatePaymentStatus(
     id: string | number,
-    status: "pending" | "completed" | "failed" | "refunded" | "cancelled"
+    status:
+      | "pending"
+      | "completed"
+      | "failed"
+      | "refunded"
+      | "cancelled"
+      | "partial"
   ) {
     return this.request(`/payments/${id}/status`, {
       method: "PATCH",
       body: JSON.stringify({ status }),
     });
   }
+
+  // Order Management API methods
+  async getOrders(params?: {
+    status?: string;
+    paymentStatus?: string;
+    deliveryMethod?: string;
+    paymentMethod?: string;
+    startDate?: string;
+    endDate?: string;
+    q?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return this.request(`/orders/admin${queryString ? `?${queryString}` : ""}`);
+  }
+
+  async getOrder(id: string | number) {
+    return this.request(`/orders/${id}`);
+  }
+
+  async updateOrderStatus(
+    id: string | number,
+    status:
+      | "pending"
+      | "confirmed"
+      | "processing"
+      | "ready_for_pickup"
+      | "shipped"
+      | "out_for_delivery"
+      | "delivered"
+      | "cancelled"
+      | "refunded"
+  ) {
+    return this.request(`/orders/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  // Delivery Zones API methods
+  async getDeliveryZones() {
+    return this.request("/delivery-zones");
+  }
+
+  async getDeliveryZone(id: string) {
+    return this.request(`/delivery-zones/${id}`);
+  }
+
+  async createDeliveryZone(data: {
+    name: string;
+    description: string;
+    deliveryFee: number;
+    estimatedDays: string;
+    coverageAreas: string[];
+  }) {
+    return this.request("/delivery-zones", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateDeliveryZone(
+    id: string,
+    data: {
+      name?: string;
+      description?: string;
+      deliveryFee?: number;
+      estimatedDays?: string;
+      coverageAreas?: string[];
+      isActive?: boolean;
+    }
+  ) {
+    return this.request(`/delivery-zones/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteDeliveryZone(id: string) {
+    return this.request(`/delivery-zones/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getAdminDeliveryZones() {
+    return this.request("/delivery-zones/admin");
+  }
+
+  // App Settings API methods
+  async getAppSettings() {
+    return this.request<AppSettingsResponse>("/admin/settings");
+  }
+
+  async updateAppSettings(data: Partial<AppSettings>) {
+    return this.request("/admin/settings", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Ghana Locations API methods
+  async getGhanaRegions() {
+    return this.request("/ghana/regions");
+  }
+
+  async getGhanaCities(regionId?: number) {
+    const endpoint = regionId ? `/ghana/cities/${regionId}` : "/ghana/cities";
+    return this.request(endpoint);
+  }
+
+  // Delivery Zone Areas API methods
+  async addAreaToDeliveryZone(
+    zoneId: string,
+    areaData: {
+      regionId: number;
+      cityId: number;
+      areaName: string;
+    }
+  ) {
+    return this.request(`/delivery-zones/${zoneId}/areas`, {
+      method: "POST",
+      body: JSON.stringify(areaData),
+    });
+  }
+
+  async removeAreaFromDeliveryZone(zoneId: string, areaId: string) {
+    return this.request(`/delivery-zones/${zoneId}/areas/${areaId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getDeliveryZoneAreas(zoneId: string) {
+    return this.request(`/delivery-zones/${zoneId}/areas`);
+  }
+
+  // Pickup Locations API methods
+  async getPickupLocations() {
+    return this.request("/pickup-locations");
+  }
+
+  async getPickupLocation(id: string) {
+    return this.request(`/pickup-locations/${id}`);
+  }
+
+  async createPickupLocation(data: {
+    name: string;
+    description: string;
+    regionId: number;
+    cityId: number;
+    areaName: string;
+    landmark?: string;
+    additionalInstructions?: string;
+    contactPhone: string;
+    contactEmail: string;
+    operatingHours: Record<string, string>;
+  }) {
+    return this.request("/pickup-locations", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updatePickupLocation(
+    id: string,
+    data: Partial<{
+      name: string;
+      description: string;
+      regionId: number;
+      cityId: number;
+      areaName: string;
+      landmark?: string;
+      additionalInstructions?: string;
+      contactPhone: string;
+      contactEmail: string;
+      operatingHours: Record<string, string>;
+    }>
+  ) {
+    return this.request(`/pickup-locations/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deletePickupLocation(id: string) {
+    return this.request(`/pickup-locations/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getAdminPickupLocations() {
+    return this.request("/pickup-locations/admin");
+  }
 }
 
-// Create and export a singleton instance
 export const apiClient = new ApiClient(API_BASE_URL);
 
 // Export types for better TypeScript support
@@ -573,6 +811,113 @@ export interface DashboardStats {
   activeAdmins: number;
 }
 
+export interface DeliveryZone {
+  id: string;
+  name: string;
+  description: string;
+  deliveryFee: number;
+  estimatedDays: string;
+  coverageAreas: string[];
+  structuredAreas?: DeliveryZoneArea[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface GhanaRegion {
+  id: number;
+  name: string;
+  code: string;
+}
+
+export interface GhanaCity {
+  id: number;
+  name: string;
+  region_id: number;
+  region_name: string;
+  region_code: string;
+}
+
+export interface DeliveryZoneArea {
+  id: number;
+  delivery_zone_id: number;
+  region_id: number;
+  city_id: number;
+  area_name: string;
+  region_name?: string;
+  city_name?: string;
+}
+
+export interface GhanaRegionsResponse {
+  success: boolean;
+  message: string;
+  count: number;
+  regions: GhanaRegion[];
+}
+
+export interface GhanaCitiesResponse {
+  success: boolean;
+  message: string;
+  count: number;
+  cities: GhanaCity[];
+}
+
+export interface DeliveryZonesResponse {
+  success: boolean;
+  message: string;
+  count: number;
+  zones: DeliveryZone[];
+}
+
+export interface DeliveryZoneAreasResponse {
+  success: boolean;
+  message: string;
+  count: number;
+  areas: DeliveryZoneArea[];
+}
+
+export interface AddAreaResponse {
+  success: boolean;
+  message: string;
+  area: DeliveryZoneArea;
+}
+
+export interface CreateDeliveryZoneResponse {
+  success: boolean;
+  message: string;
+  id: string;
+  name: string;
+  description: string;
+  deliveryFee: number;
+  estimatedDays: string;
+  coverageAreas: string[];
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface PickupLocation {
+  id: string;
+  name: string;
+  description: string;
+  regionName: string;
+  cityName: string;
+  areaName: string;
+  landmark?: string;
+  additionalInstructions?: string;
+  contactPhone: string;
+  contactEmail: string;
+  operatingHours: Record<string, string>;
+  googleMapsLink: string;
+  createdAt: string;
+}
+
+export interface PickupLocationsResponse {
+  success: boolean;
+  message: string;
+  count: number;
+  locations: PickupLocation[];
+}
+
 // Backend Product interface (matches your actual backend response)
 export interface Product {
   id: number;
@@ -584,5 +929,26 @@ export interface Product {
   color: string;
   stock_quantity: number;
   image_url: string | null;
+  is_active: boolean;
+  requires_special_delivery: boolean;
+  delivery_eligible: boolean;
+  pickup_eligible: boolean;
   created_at: string;
+}
+
+export interface AppSettings {
+  id: number;
+  taxRate: number;
+  freeShippingThreshold: number;
+  largeOrderQuantityThreshold: number;
+  largeOrderDeliveryFee: number;
+  currencySymbol: string;
+  currencyCode: string;
+  updatedAt: string;
+}
+
+export interface AppSettingsResponse {
+  success: boolean;
+  message: string;
+  settings: AppSettings;
 }
