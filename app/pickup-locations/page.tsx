@@ -97,6 +97,7 @@ export default function PickupLocationsPage() {
       saturday: "10:00 AM - 4:00 PM",
       sunday: "Closed",
     },
+    googleMapsLink: "",
   });
 
   useEffect(() => {
@@ -192,8 +193,19 @@ export default function PickupLocationsPage() {
             contactPhone: formData.contactPhone,
             contactEmail: formData.contactEmail,
             operatingHours: formData.operatingHours,
+            googleMapsLink: formData.googleMapsLink || undefined,
           }
         );
+
+        const possibleError = (response as unknown as { error?: string }).error;
+        if (possibleError) {
+          let message = possibleError;
+          try {
+            const parsed = JSON.parse(possibleError) as { message?: string };
+            if (parsed.message) message = parsed.message;
+          } catch {}
+          throw new Error(message);
+        }
 
         if (response.data) {
           toast.success("Pickup location updated successfully");
@@ -213,7 +225,18 @@ export default function PickupLocationsPage() {
           contactPhone: formData.contactPhone,
           contactEmail: formData.contactEmail,
           operatingHours: formData.operatingHours,
+          googleMapsLink: formData.googleMapsLink || undefined,
         });
+
+        const possibleError = (response as unknown as { error?: string }).error;
+        if (possibleError) {
+          let message = possibleError;
+          try {
+            const parsed = JSON.parse(possibleError) as { message?: string };
+            if (parsed.message) message = parsed.message;
+          } catch {}
+          throw new Error(message);
+        }
 
         if (response.data) {
           toast.success("Pickup location created successfully");
@@ -250,6 +273,8 @@ export default function PickupLocationsPage() {
         saturday: string;
         sunday: string;
       },
+      googleMapsLink:
+        (location as { googleMapsLink?: string }).googleMapsLink || "",
     });
     setIsDialogOpen(true);
   };
@@ -261,7 +286,16 @@ export default function PickupLocationsPage() {
 
     try {
       setIsDeleting(id);
-      await apiClient.deletePickupLocation(id);
+      const resp = await apiClient.deletePickupLocation(id);
+      const possibleError = (resp as unknown as { error?: string }).error;
+      if (possibleError) {
+        let message = possibleError;
+        try {
+          const parsed = JSON.parse(possibleError) as { message?: string };
+          if (parsed.message) message = parsed.message;
+        } catch {}
+        throw new Error(message);
+      }
       toast.success("Pickup location deleted successfully");
       fetchLocations();
     } catch (error) {
@@ -292,6 +326,7 @@ export default function PickupLocationsPage() {
         saturday: "10:00 AM - 4:00 PM",
         sunday: "Closed",
       },
+      googleMapsLink: "",
     });
     setEditingLocation(null);
     setSelectedRegionId(null);
@@ -514,6 +549,23 @@ export default function PickupLocationsPage() {
                         }
                         placeholder="Special instructions for customers..."
                         rows={2}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="googleMapsLink">
+                        Google Maps Link (optional)
+                      </Label>
+                      <Input
+                        id="googleMapsLink"
+                        value={formData.googleMapsLink}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            googleMapsLink: e.target.value,
+                          })
+                        }
+                        placeholder="https://www.google.com/maps/search/?api=1&query=..."
                       />
                     </div>
 

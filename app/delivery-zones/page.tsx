@@ -151,6 +151,16 @@ export default function DeliveryZonesPage() {
               areaName: newArea.areaName,
             }
           );
+          const possibleError = (response as unknown as { error?: string })
+            .error;
+          if (possibleError) {
+            let message = possibleError;
+            try {
+              const parsed = JSON.parse(possibleError) as { message?: string };
+              if (parsed.message) message = parsed.message;
+            } catch {}
+            throw new Error(message);
+          }
 
           const data = response.data as AddAreaResponse;
           if (data && data.area) {
@@ -209,10 +219,19 @@ export default function DeliveryZonesPage() {
   const removeArea = async (areaId: number) => {
     if (editingZone) {
       try {
-        await apiClient.removeAreaFromDeliveryZone(
+        const resp = await apiClient.removeAreaFromDeliveryZone(
           editingZone.id,
           areaId.toString()
         );
+        const possibleError = (resp as unknown as { error?: string }).error;
+        if (possibleError) {
+          let message = possibleError;
+          try {
+            const parsed = JSON.parse(possibleError) as { message?: string };
+            if (parsed.message) message = parsed.message;
+          } catch {}
+          throw new Error(message);
+        }
         setZoneAreas(zoneAreas.filter((area) => area.id !== areaId));
         toast.success("Area removed successfully");
 
@@ -297,6 +316,15 @@ export default function DeliveryZonesPage() {
           deliveryFee: parseFloat(formData.deliveryFee),
           estimatedDays: formData.estimatedDays,
         });
+        const possibleError = (response as unknown as { error?: string }).error;
+        if (possibleError) {
+          let message = possibleError;
+          try {
+            const parsed = JSON.parse(possibleError) as { message?: string };
+            if (parsed.message) message = parsed.message;
+          } catch {}
+          throw new Error(message);
+        }
 
         if (response.data) {
           toast.success("Delivery zone updated successfully");
@@ -312,6 +340,16 @@ export default function DeliveryZonesPage() {
           estimatedDays: formData.estimatedDays,
           coverageAreas: [], // Will be managed through structured areas
         });
+
+        const possibleError = (response as unknown as { error?: string }).error;
+        if (possibleError) {
+          let message = possibleError;
+          try {
+            const parsed = JSON.parse(possibleError) as { message?: string };
+            if (parsed.message) message = parsed.message;
+          } catch {}
+          throw new Error(message);
+        }
 
         // Handle different possible response structures
         let newZoneId;
@@ -417,6 +455,15 @@ export default function DeliveryZonesPage() {
     try {
       setIsDeleting(id);
       const response = await apiClient.deleteDeliveryZone(id);
+      const possibleError = (response as unknown as { error?: string }).error;
+      if (possibleError) {
+        let message = possibleError;
+        try {
+          const parsed = JSON.parse(possibleError) as { message?: string };
+          if (parsed.message) message = parsed.message;
+        } catch {}
+        throw new Error(message);
+      }
       if (response.data) {
         toast.success("Delivery zone deleted successfully");
         fetchZones();
@@ -435,6 +482,15 @@ export default function DeliveryZonesPage() {
       const response = await apiClient.updateDeliveryZone(id, {
         isActive: !currentStatus,
       });
+      const possibleError = (response as unknown as { error?: string }).error;
+      if (possibleError) {
+        let message = possibleError;
+        try {
+          const parsed = JSON.parse(possibleError) as { message?: string };
+          if (parsed.message) message = parsed.message;
+        } catch {}
+        throw new Error(message);
+      }
       if (response.data) {
         toast.success(
           `Delivery zone ${

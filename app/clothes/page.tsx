@@ -159,6 +159,15 @@ export default function ClothesPage() {
         deliveryEligible: formData.deliveryEligible,
         pickupEligible: formData.pickupEligible,
       });
+      const possibleError = (response as unknown as { error?: string }).error;
+      if (possibleError) {
+        let message = possibleError;
+        try {
+          const parsed = JSON.parse(possibleError) as { message?: string };
+          if (parsed.message) message = parsed.message;
+        } catch {}
+        throw new Error(message);
+      }
 
       if (response.data) {
         toast.success("Clothes added successfully");
@@ -190,7 +199,16 @@ export default function ClothesPage() {
   const handleDeleteClothes = async (id: number) => {
     try {
       setIsDeletingClothes(id);
-      await apiClient.deleteProduct(id);
+      const resp = await apiClient.deleteProduct(id);
+      const possibleError = (resp as unknown as { error?: string }).error;
+      if (possibleError) {
+        let message = possibleError;
+        try {
+          const parsed = JSON.parse(possibleError) as { message?: string };
+          if (parsed.message) message = parsed.message;
+        } catch {}
+        throw new Error(message);
+      }
       toast.success("Clothes deleted successfully");
       fetchClothes(); // Refresh the list
     } catch (error) {
@@ -243,7 +261,7 @@ export default function ClothesPage() {
         const { data } = supabase.storage.from("products").getPublicUrl(path);
         imageUrl = data.publicUrl;
       }
-      await apiClient.updateProduct(editingProduct.id, {
+      const resp = await apiClient.updateProduct(editingProduct.id, {
         title: editFormData.title,
         price: parseFloat(editFormData.price),
         description: editFormData.description,
@@ -256,6 +274,15 @@ export default function ClothesPage() {
         deliveryEligible: editFormData.deliveryEligible,
         pickupEligible: editFormData.pickupEligible,
       });
+      const possibleError2 = (resp as unknown as { error?: string }).error;
+      if (possibleError2) {
+        let message = possibleError2;
+        try {
+          const parsed = JSON.parse(possibleError2) as { message?: string };
+          if (parsed.message) message = parsed.message;
+        } catch {}
+        throw new Error(message);
+      }
       toast.success("Clothes updated successfully");
       setIsEditDialogOpen(false);
       setEditingProduct(null);
