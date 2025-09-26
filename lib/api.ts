@@ -682,6 +682,96 @@ class ApiClient {
     return this.request(`/delivery-zones/${zoneId}/areas`);
   }
 
+  // Brand Management API methods
+  async getBrands() {
+    return this.request("/brands");
+  }
+
+  async getBrand(id: string | number) {
+    return this.request(`/brands/${id}`);
+  }
+
+  async createBrand(data: {
+    name: string;
+    description?: string;
+    logo_url?: string;
+  }) {
+    return this.request("/brands", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateBrand(
+    id: string | number,
+    data: {
+      name?: string;
+      description?: string;
+      logo_url?: string;
+      is_active?: boolean;
+    }
+  ) {
+    return this.request(`/brands/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteBrand(id: string | number) {
+    return this.request(`/brands/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  // Category Management API methods
+  async getCategories() {
+    return this.request("/categories");
+  }
+
+  async getCategoriesFlat() {
+    return this.request("/categories/flat");
+  }
+
+  async getCategory(id: string | number) {
+    return this.request(`/categories/${id}`);
+  }
+
+  async createCategory(data: {
+    name: string;
+    description?: string;
+    parent_id?: number;
+    image_url?: string;
+    sort_order?: number;
+  }) {
+    return this.request("/categories", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCategory(
+    id: string | number,
+    data: {
+      name?: string;
+      description?: string;
+      parent_id?: number;
+      image_url?: string;
+      sort_order?: number;
+      is_active?: boolean;
+    }
+  ) {
+    return this.request(`/categories/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCategory(id: string | number) {
+    return this.request(`/categories/${id}`, {
+      method: "DELETE",
+    });
+  }
+
   // Pickup Locations API methods
   async getPickupLocations() {
     return this.request("/pickup-locations");
@@ -959,4 +1049,55 @@ export interface AppSettingsResponse {
   success: boolean;
   message: string;
   settings: AppSettings;
+}
+
+// Brand interfaces
+export interface Brand {
+  id: string;
+  name: string;
+  description?: string;
+  logoUrl?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface BrandsResponse {
+  success: boolean;
+  message: string;
+  count: number;
+  brands: Brand[];
+}
+
+export interface BrandResponse {
+  success: boolean;
+  message: string;
+  brand: Brand;
+}
+
+// Category interfaces
+export interface Category {
+  id: string;
+  name: string;
+  description?: string;
+  parentId?: string;
+  imageUrl?: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt?: string;
+  children?: Category[];
+}
+
+export interface CategoriesResponse {
+  success: boolean;
+  message: string;
+  count: number;
+  categories: Category[];
+}
+
+export interface CategoryResponse {
+  success: boolean;
+  message: string;
+  category: Category;
 }
