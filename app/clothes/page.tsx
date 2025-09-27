@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -40,13 +41,20 @@ import {
   IconEdit,
   IconLoader,
 } from "@tabler/icons-react";
-import { apiClient, Product } from "@/lib/api";
+import {
+  apiClient,
+  Product,
+  Brand,
+  Category,
+  ProductsResponse,
+} from "@/lib/api";
 import { toast } from "sonner";
 import { ProtectedRoute } from "@/components/protected-route";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 
 export default function ClothesPage() {
+  const router = useRouter();
   const [clothes, setClothes] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -58,6 +66,12 @@ export default function ClothesPage() {
   const [formData, setFormData] = useState({
     title: "",
     price: "",
+    costPrice: "",
+    discountPrice: "",
+    discountPercent: "",
+    brandId: "",
+    categoryId: "",
+    sku: "",
     description: "",
     category: "",
     size: "",
@@ -78,6 +92,12 @@ export default function ClothesPage() {
   const [editFormData, setEditFormData] = useState({
     title: "",
     price: "",
+    costPrice: "",
+    discountPrice: "",
+    discountPercent: "",
+    brandId: "",
+    categoryId: "",
+    sku: "",
     description: "",
     category: "",
     size: "",
@@ -92,30 +112,154 @@ export default function ClothesPage() {
 
   useEffect(() => {
     fetchClothes();
+    fetchBrandsAndCategories();
   }, []);
+
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [categoriesFlat, setCategoriesFlat] = useState<Category[]>([]);
+  const [inventorySummary, setInventorySummary] = useState<{
+    totalInventoryValue: number;
+    totalItemsInStock: number;
+    totalVariants: number;
+  } | null>(null);
+
+  // Build hierarchical labels for categories (e.g., "Men's Clothing / T-Shirts")
+  const categoryById = useMemo(() => {
+    const m = new Map<string, Category>();
+    categoriesFlat.forEach((c) => m.set(c.id, c));
+    return m;
+  }, [categoriesFlat]);
+
+  const categoryOptions = useMemo(() => {
+    // Build a set of category ids that are referenced as a parentId by others
+    const parentIdsWithChildren = new Set<string>();
+    for (const cat of categoriesFlat) {
+      if (cat.parentId) parentIdsWithChildren.add(cat.parentId);
+    }
+
+    // Only include leaf categories (those that are not parents)
+    const leaves = categoriesFlat.filter(
+      (c) => !parentIdsWithChildren.has(c.id)
+    );
+
+    const options = leaves.map((c) => {
+      const names: string[] = [c.name];
+      let current: Category | undefined = c;
+      while (current && current.parentId) {
+        const parent = categoryById.get(current.parentId);
+        if (!parent) break;
+        names.unshift(parent.name);
+        current = parent;
+      }
+      return {
+        id: c.id,
+        label: names.join(" / "),
+        depth: names.length - 1,
+      };
+    });
+
+    return options.sort((a, b) => a.label.localeCompare(b.label));
+  }, [categoriesFlat, categoryById]);
+
+  const computeEffectivePrice = (
+    priceStr: string,
+    discountPriceStr: string,
+    discountPercentStr: string
+  ) => {
+    const price = parseFloat(priceStr || "0");
+    const discountPrice = parseFloat(discountPriceStr || "0");
+    const discountPercent = parseFloat(discountPercentStr || "0");
+    if (!isNaN(discountPrice) && discountPrice > 0 && discountPrice < price) {
+      return discountPrice;
+    }
+    if (!isNaN(discountPercent) && discountPercent > 0) {
+      return price - (price * discountPercent) / 100;
+    }
+    return price;
+  };
+
+  const computeProfit = (
+    costPriceStr: string,
+    effectivePrice: number
+  ): { profit: number; margin: number } | null => {
+    const cost = parseFloat(costPriceStr || "");
+    if (isNaN(cost) || cost <= 0) return null;
+    const profit = effectivePrice - cost;
+    const margin = effectivePrice > 0 ? (profit / effectivePrice) * 100 : 0;
+    return { profit, margin };
+  };
+
+  const fetchBrandsAndCategories = async () => {
+    try {
+      const [b, c] = await Promise.all([
+        apiClient.getBrands(),
+        apiClient.getCategoriesFlat(),
+      ]);
+      const brandsData = (b.data as { brands?: Brand[]; data?: unknown })
+        .brands;
+      const catsData = (c.data as { categories?: Category[]; data?: unknown })
+        .categories;
+      setBrands(Array.isArray(brandsData) ? brandsData : []);
+      setCategoriesFlat(Array.isArray(catsData) ? catsData : []);
+    } catch {
+      // non-fatal
+    }
+  };
+
+  // Function to build full category path
+  const getCategoryPath = (
+    category: string | { id: string; name: string } | undefined
+  ): string => {
+    if (typeof category === "string") {
+      return category;
+    }
+    if (!category?.id) {
+      return "Uncategorized";
+    }
+
+    // Get the full category data from our categoriesFlat array
+    // because the product's category object might be incomplete
+    const fullCategory = categoryById.get(category.id);
+    if (!fullCategory) {
+      return category.name; // Fallback to just the name
+    }
+
+    const names: string[] = [fullCategory.name];
+    let current = fullCategory;
+
+    // Walk up the parent chain using the full category data
+    while (current.parentId) {
+      const parent = categoryById.get(current.parentId);
+      if (!parent) break;
+      names.unshift(parent.name);
+      current = parent;
+    }
+
+    return names.join(" / ");
+  };
 
   const fetchClothes = async () => {
     try {
       setIsLoading(true);
-      const response = await apiClient.getClothes();
-
-      interface ProductsResponse {
-        message: string;
-        count: number;
-        products: Product[];
-      }
+      const response = await apiClient.getProducts();
 
       if (response.data && (response.data as ProductsResponse).products) {
-        setClothes((response.data as ProductsResponse).products);
+        const data = response.data as ProductsResponse;
+        setClothes(data.products);
+        setInventorySummary(data.inventorySummary);
       } else if (response.data && Array.isArray(response.data)) {
+        // Fallback for old response format
         setClothes(response.data);
+        setInventorySummary(null);
       } else {
         setClothes([]);
+        setInventorySummary(null);
       }
     } catch (error) {
       console.error("Error fetching clothes:", error);
       toast.error("Failed to load clothes");
       setClothes([]);
+      setInventorySummary(null);
     } finally {
       setIsLoading(false);
     }
@@ -149,11 +293,24 @@ export default function ClothesPage() {
       const response = await apiClient.addClothes({
         title: formData.title,
         price: parseFloat(formData.price),
+        costPrice: formData.costPrice
+          ? parseFloat(formData.costPrice)
+          : undefined,
+        discountPrice: formData.discountPrice
+          ? parseFloat(formData.discountPrice)
+          : undefined,
+        discountPercent: formData.discountPercent
+          ? parseFloat(formData.discountPercent)
+          : undefined,
+        brandId: formData.brandId || undefined,
+        categoryId: formData.categoryId || undefined,
+        sku: formData.sku || undefined,
         description: formData.description,
+        // legacy simple fields kept
         category: formData.category,
         size: formData.size,
         color: formData.color,
-        stock: parseInt(formData.stock),
+        stock: parseInt(formData.stock) || 0,
         imageUrl,
         requiresSpecialDelivery: formData.requiresSpecialDelivery,
         deliveryEligible: formData.deliveryEligible,
@@ -175,6 +332,12 @@ export default function ClothesPage() {
         setFormData({
           title: "",
           price: "",
+          costPrice: "",
+          discountPrice: "",
+          discountPercent: "",
+          brandId: "",
+          categoryId: "",
+          sku: "",
           description: "",
           category: "",
           size: "",
@@ -224,11 +387,22 @@ export default function ClothesPage() {
     setEditFormData({
       title: item.name || "",
       price: String(item.price || ""),
+      costPrice: item.costPrice !== undefined ? String(item.costPrice) : "",
+      discountPrice:
+        item.discountPrice !== undefined ? String(item.discountPrice) : "",
+      discountPercent:
+        item.discountPercent !== undefined ? String(item.discountPercent) : "",
+      brandId: item.brand?.id || "",
+      categoryId: item.category?.id || "",
+      sku: item.sku || "",
       description: item.description || "",
-      category: item.category || "",
-      size: item.size || "",
-      color: item.color || "",
-      stock: String(item.stock_quantity ?? ""),
+      category:
+        typeof item.category === "string"
+          ? item.category
+          : item.category?.name || "",
+      size: "",
+      color: "",
+      stock: "0",
       imageUrl: item.image_url || "",
       requiresSpecialDelivery: item.requires_special_delivery || false,
       deliveryEligible:
@@ -264,11 +438,23 @@ export default function ClothesPage() {
       const resp = await apiClient.updateProduct(editingProduct.id, {
         title: editFormData.title,
         price: parseFloat(editFormData.price),
+        costPrice: editFormData.costPrice
+          ? parseFloat(editFormData.costPrice)
+          : undefined,
+        discountPrice: editFormData.discountPrice
+          ? parseFloat(editFormData.discountPrice)
+          : undefined,
+        discountPercent: editFormData.discountPercent
+          ? parseFloat(editFormData.discountPercent)
+          : undefined,
+        brandId: editFormData.brandId || undefined,
+        categoryId: editFormData.categoryId || undefined,
+        sku: editFormData.sku || undefined,
         description: editFormData.description,
         category: editFormData.category,
         size: editFormData.size,
         color: editFormData.color,
-        stock: parseInt(editFormData.stock),
+        stock: parseInt(editFormData.stock) || 0,
         imageUrl,
         requiresSpecialDelivery: editFormData.requiresSpecialDelivery,
         deliveryEligible: editFormData.deliveryEligible,
@@ -302,8 +488,9 @@ export default function ClothesPage() {
       const matchesSearch =
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.description.toLowerCase().includes(searchTerm.toLowerCase());
+      const itemCategoryName = getCategoryPath(item.category);
       const matchesCategory =
-        filterCategory === "all" || item.category === filterCategory;
+        filterCategory === "all" || itemCategoryName === filterCategory;
       return matchesSearch && matchesCategory;
     })
     .sort((a, b) => {
@@ -311,22 +498,26 @@ export default function ClothesPage() {
         case "name":
           return a.name.localeCompare(b.name);
         case "price":
-          return parseFloat(a.price) - parseFloat(b.price);
+          return (a.effectivePrice || a.price) - (b.effectivePrice || b.price);
         case "stock":
-          return a.stock_quantity - b.stock_quantity;
-        case "category":
-          return a.category.localeCompare(b.category);
+          // Stock is now managed per variant, so we can't sort by stock here
+          return 0;
+        case "category": {
+          const aCat = getCategoryPath(a.category);
+          const bCat = getCategoryPath(b.category);
+          return aCat.localeCompare(bCat);
+        }
         default:
           return 0;
       }
     });
 
-  const totalValue = filteredAndSortedClothes.reduce(
-    (sum, item) => sum + parseFloat(item.price) * item.stock_quantity,
-    0
-  );
+  // Use backend-provided inventory value instead of manual calculation
+  const totalValue = inventorySummary?.totalInventoryValue || 0;
 
-  const categories = Array.from(new Set(clothes.map((item) => item.category)));
+  const categories = Array.from(
+    new Set(clothes.map((item) => getCategoryPath(item.category)))
+  );
 
   if (isLoading) {
     return (
@@ -436,6 +627,149 @@ export default function ClothesPage() {
                               placeholder="Enter price"
                             />
                           </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <Label htmlFor="costPrice">Cost Price (₵)</Label>
+                              <Input
+                                id="costPrice"
+                                type="number"
+                                step="0.01"
+                                value={formData.costPrice}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    costPrice: e.target.value,
+                                  })
+                                }
+                                placeholder="Enter cost price"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="discountPrice">
+                                Discount Price (₵)
+                              </Label>
+                              <Input
+                                id="discountPrice"
+                                type="number"
+                                step="0.01"
+                                value={formData.discountPrice}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    discountPrice: e.target.value,
+                                  })
+                                }
+                                placeholder="Enter discount price"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="discountPercent">
+                                Discount %
+                              </Label>
+                              <Input
+                                id="discountPercent"
+                                type="number"
+                                step="0.01"
+                                value={formData.discountPercent}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    discountPercent: e.target.value,
+                                  })
+                                }
+                                placeholder="Enter discount percent"
+                              />
+                            </div>
+                          </div>
+                          <Card>
+                            <CardContent className="pt-4">
+                              <div className="text-sm text-muted-foreground">
+                                Effective Price
+                              </div>
+                              <div className="text-2xl font-bold">
+                                ₵
+                                {computeEffectivePrice(
+                                  formData.price,
+                                  formData.discountPrice,
+                                  formData.discountPercent
+                                ).toFixed(2)}
+                              </div>
+                              {(() => {
+                                const eff = computeEffectivePrice(
+                                  formData.price,
+                                  formData.discountPrice,
+                                  formData.discountPercent
+                                );
+                                const p = computeProfit(
+                                  formData.costPrice,
+                                  eff
+                                );
+                                if (!p) return null;
+                                return (
+                                  <div className="text-sm text-muted-foreground mt-1">
+                                    Profit: ₵{p.profit.toFixed(2)} · Margin:{" "}
+                                    {p.margin.toFixed(1)}%
+                                  </div>
+                                );
+                              })()}
+                            </CardContent>
+                          </Card>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="brandId">Brand</Label>
+                              <Select
+                                value={formData.brandId}
+                                onValueChange={(v) =>
+                                  setFormData({ ...formData, brandId: v })
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a brand" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {brands.map((b) => (
+                                    <SelectItem key={b.id} value={b.id}>
+                                      {b.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label htmlFor="categoryId">Category</Label>
+                              <Select
+                                value={formData.categoryId}
+                                onValueChange={(v) =>
+                                  setFormData({ ...formData, categoryId: v })
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {categoryOptions.map((opt) => (
+                                    <SelectItem key={opt.id} value={opt.id}>
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <div>
+                            <Label htmlFor="sku">SKU</Label>
+                            <Input
+                              id="sku"
+                              value={formData.sku}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  sku: e.target.value,
+                                })
+                              }
+                              placeholder="Enter SKU (optional)"
+                            />
+                          </div>
                           <div>
                             <Label htmlFor="description">Description</Label>
                             <Input
@@ -450,65 +784,9 @@ export default function ClothesPage() {
                               placeholder="Enter description"
                             />
                           </div>
-                          <div>
-                            <Label htmlFor="category">Category</Label>
-                            <Input
-                              id="category"
-                              value={formData.category}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  category: e.target.value,
-                                })
-                              }
-                              placeholder="Enter category"
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label htmlFor="size">Size</Label>
-                              <Input
-                                id="size"
-                                value={formData.size}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    size: e.target.value,
-                                  })
-                                }
-                                placeholder="Enter size"
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="color">Color</Label>
-                              <Input
-                                id="color"
-                                value={formData.color}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    color: e.target.value,
-                                  })
-                                }
-                                placeholder="Enter color"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <Label htmlFor="stock">Stock Quantity</Label>
-                            <Input
-                              id="stock"
-                              type="number"
-                              value={formData.stock}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  stock: e.target.value,
-                                })
-                              }
-                              placeholder="Enter stock quantity"
-                            />
-                          </div>
+                          {/* remove legacy free-text category (using dropdown above) */}
+                          {/* remove legacy size/color from base form; handled via variants */}
+                          {/* Stock quantity removed - now managed per variant */}
                           <div className="flex items-center space-x-2">
                             <input
                               type="checkbox"
@@ -605,7 +883,15 @@ export default function ClothesPage() {
                           </Button>
                           <Button
                             onClick={handleAddClothes}
-                            disabled={isAddingClothes}
+                            disabled={
+                              isAddingClothes ||
+                              (formData.discountPrice !== "" &&
+                                parseFloat(formData.discountPrice) >=
+                                  parseFloat(formData.price || "0")) ||
+                              (formData.discountPercent !== "" &&
+                                (parseFloat(formData.discountPercent) < 0 ||
+                                  parseFloat(formData.discountPercent) > 100))
+                            }
                           >
                             {isAddingClothes ? (
                               <>
@@ -662,6 +948,157 @@ export default function ClothesPage() {
                               placeholder="Enter price"
                             />
                           </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <Label htmlFor="edit_costPrice">
+                                Cost Price (₵)
+                              </Label>
+                              <Input
+                                id="edit_costPrice"
+                                type="number"
+                                step="0.01"
+                                value={editFormData.costPrice}
+                                onChange={(e) =>
+                                  setEditFormData({
+                                    ...editFormData,
+                                    costPrice: e.target.value,
+                                  })
+                                }
+                                placeholder="Enter cost price"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="edit_discountPrice">
+                                Discount Price (₵)
+                              </Label>
+                              <Input
+                                id="edit_discountPrice"
+                                type="number"
+                                step="0.01"
+                                value={editFormData.discountPrice}
+                                onChange={(e) =>
+                                  setEditFormData({
+                                    ...editFormData,
+                                    discountPrice: e.target.value,
+                                  })
+                                }
+                                placeholder="Enter discount price"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="edit_discountPercent">
+                                Discount %
+                              </Label>
+                              <Input
+                                id="edit_discountPercent"
+                                type="number"
+                                step="0.01"
+                                value={editFormData.discountPercent}
+                                onChange={(e) =>
+                                  setEditFormData({
+                                    ...editFormData,
+                                    discountPercent: e.target.value,
+                                  })
+                                }
+                                placeholder="Enter discount percent"
+                              />
+                            </div>
+                          </div>
+                          <Card>
+                            <CardContent className="pt-4">
+                              <div className="text-sm text-muted-foreground">
+                                Effective Price
+                              </div>
+                              <div className="text-2xl font-bold">
+                                ₵
+                                {computeEffectivePrice(
+                                  editFormData.price,
+                                  editFormData.discountPrice,
+                                  editFormData.discountPercent
+                                ).toFixed(2)}
+                              </div>
+                              {(() => {
+                                const eff = computeEffectivePrice(
+                                  editFormData.price,
+                                  editFormData.discountPrice,
+                                  editFormData.discountPercent
+                                );
+                                const p = computeProfit(
+                                  editFormData.costPrice,
+                                  eff
+                                );
+                                if (!p) return null;
+                                return (
+                                  <div className="text-sm text-muted-foreground mt-1">
+                                    Profit: ₵{p.profit.toFixed(2)} · Margin:{" "}
+                                    {p.margin.toFixed(1)}%
+                                  </div>
+                                );
+                              })()}
+                            </CardContent>
+                          </Card>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="edit_brandId">Brand</Label>
+                              <Select
+                                value={editFormData.brandId}
+                                onValueChange={(v) =>
+                                  setEditFormData({
+                                    ...editFormData,
+                                    brandId: v,
+                                  })
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a brand" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {brands.map((b) => (
+                                    <SelectItem key={b.id} value={b.id}>
+                                      {b.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label htmlFor="edit_categoryId">Category</Label>
+                              <Select
+                                value={editFormData.categoryId}
+                                onValueChange={(v) =>
+                                  setEditFormData({
+                                    ...editFormData,
+                                    categoryId: v,
+                                  })
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {categoryOptions.map((opt) => (
+                                    <SelectItem key={opt.id} value={opt.id}>
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <div>
+                            <Label htmlFor="edit_sku">SKU</Label>
+                            <Input
+                              id="edit_sku"
+                              value={editFormData.sku}
+                              onChange={(e) =>
+                                setEditFormData({
+                                  ...editFormData,
+                                  sku: e.target.value,
+                                })
+                              }
+                              placeholder="Enter SKU (optional)"
+                            />
+                          </div>
                           <div>
                             <Label htmlFor="edit_description">
                               Description
@@ -678,65 +1115,9 @@ export default function ClothesPage() {
                               placeholder="Enter description"
                             />
                           </div>
-                          <div>
-                            <Label htmlFor="edit_category">Category</Label>
-                            <Input
-                              id="edit_category"
-                              value={editFormData.category}
-                              onChange={(e) =>
-                                setEditFormData({
-                                  ...editFormData,
-                                  category: e.target.value,
-                                })
-                              }
-                              placeholder="Enter category"
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label htmlFor="edit_size">Size</Label>
-                              <Input
-                                id="edit_size"
-                                value={editFormData.size}
-                                onChange={(e) =>
-                                  setEditFormData({
-                                    ...editFormData,
-                                    size: e.target.value,
-                                  })
-                                }
-                                placeholder="Enter size"
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="edit_color">Color</Label>
-                              <Input
-                                id="edit_color"
-                                value={editFormData.color}
-                                onChange={(e) =>
-                                  setEditFormData({
-                                    ...editFormData,
-                                    color: e.target.value,
-                                  })
-                                }
-                                placeholder="Enter color"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <Label htmlFor="edit_stock">Stock Quantity</Label>
-                            <Input
-                              id="edit_stock"
-                              type="number"
-                              value={editFormData.stock}
-                              onChange={(e) =>
-                                setEditFormData({
-                                  ...editFormData,
-                                  stock: e.target.value,
-                                })
-                              }
-                              placeholder="Enter stock quantity"
-                            />
-                          </div>
+                          {/* remove legacy free-text category */}
+                          {/* remove legacy size/color; managed in variants */}
+                          {/* Stock quantity removed - now managed per variant */}
                           <div className="flex items-center space-x-2">
                             <input
                               type="checkbox"
@@ -838,7 +1219,16 @@ export default function ClothesPage() {
                           </Button>
                           <Button
                             onClick={handleUpdateClothes}
-                            disabled={isUpdatingClothes}
+                            disabled={
+                              isUpdatingClothes ||
+                              (editFormData.discountPrice !== "" &&
+                                parseFloat(editFormData.discountPrice) >=
+                                  parseFloat(editFormData.price || "0")) ||
+                              (editFormData.discountPercent !== "" &&
+                                (parseFloat(editFormData.discountPercent) < 0 ||
+                                  parseFloat(editFormData.discountPercent) >
+                                    100))
+                            }
                           >
                             {isUpdatingClothes ? (
                               <>
@@ -857,13 +1247,13 @@ export default function ClothesPage() {
                   {/* Stats Card */}
                   <Card className="mb-6">
                     <CardContent className="pt-6">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className="text-center">
                           <div className="text-2xl font-bold">
                             {clothes.length}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            Total Items
+                            Total Products
                           </div>
                         </div>
                         <div className="text-center">
@@ -871,7 +1261,15 @@ export default function ClothesPage() {
                             {filteredAndSortedClothes.length}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            Filtered Items
+                            Filtered Products
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-blue-500">
+                            {inventorySummary?.totalItemsInStock || 0}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Total Items in Stock
                           </div>
                         </div>
                         <div className="text-center">
@@ -879,7 +1277,7 @@ export default function ClothesPage() {
                             ₵{totalValue.toFixed(2)}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            Total Value
+                            Total Inventory Value
                           </div>
                         </div>
                       </div>
@@ -961,23 +1359,36 @@ export default function ClothesPage() {
                             <h3 className="font-semibold text-sm line-clamp-2">
                               {item.name}
                             </h3>
-                            <span className="text-lg font-bold text-primary">
-                              ₵{item.price}
-                            </span>
+                            <div className="text-right">
+                              <span className="text-lg font-bold text-primary">
+                                ₵{item.effectivePrice || item.price}
+                              </span>
+                              {item.effectivePrice &&
+                                item.effectivePrice < item.price && (
+                                  <div className="text-xs text-muted-foreground line-through">
+                                    ₵{item.price}
+                                  </div>
+                                )}
+                            </div>
                           </div>
                           <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
                             {item.description}
                           </p>
                           <div className="flex flex-wrap gap-1 mb-3">
+                            {/* Brand Badge */}
+                            {item.brand && (
+                              <Badge
+                                variant="outline"
+                                className="text-xs bg-blue-50 text-blue-700 border-blue-200"
+                              >
+                                {item.brand.name}
+                              </Badge>
+                            )}
+                            {/* Category Badge - Show hierarchical name */}
                             <Badge variant="outline" className="text-xs">
-                              {item.category}
+                              {getCategoryPath(item.category)}
                             </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {item.size}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {item.color}
-                            </Badge>
+                            {/* Delivery/Pickup Badges */}
                             <div className="flex flex-wrap gap-1">
                               {item.requires_special_delivery && (
                                 <Badge
@@ -1006,9 +1417,18 @@ export default function ClothesPage() {
                             </div>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">
-                              Stock: {item.stock_quantity}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => {
+                                  router.push(`/products/${item.id}/variants`);
+                                }}
+                              >
+                                Manage Variants
+                              </Button>
+                            </div>
                             <div className="flex items-center gap-1">
                               <Button
                                 variant="ghost"

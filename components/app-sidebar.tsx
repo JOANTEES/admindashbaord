@@ -15,6 +15,9 @@ import {
   IconMapPin,
   IconPackage,
   IconBuildingStore,
+  IconTag,
+  IconCategory,
+  IconChartBar,
 } from "@tabler/icons-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -41,6 +44,21 @@ const data = {
       title: "Clothes",
       url: "/clothes",
       icon: IconShirt,
+    },
+    {
+      title: "Brands",
+      url: "/brands",
+      icon: IconTag,
+    },
+    {
+      title: "Categories",
+      url: "/categories",
+      icon: IconCategory,
+    },
+    {
+      title: "Reports",
+      url: "/reports",
+      icon: IconChartBar,
     },
     {
       title: "Bookings",

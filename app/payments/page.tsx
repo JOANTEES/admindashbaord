@@ -94,6 +94,24 @@ interface Payment {
   processedBy?: string;
 }
 
+// Helper functions for payment calculations
+const calculateAmountPaid = (payment: Payment): number => {
+  if (!payment.payment_history?.transactions) return 0;
+
+  return payment.payment_history.transactions.reduce((total, transaction) => {
+    return total + Number(transaction.amount || 0);
+  }, 0);
+};
+
+const calculateRemainingAmount = (payment: Payment): number => {
+  return payment.amount - calculateAmountPaid(payment);
+};
+
+const calculatePaymentProgress = (payment: Payment): number => {
+  if (payment.amount === 0) return 0;
+  return (calculateAmountPaid(payment) / payment.amount) * 100;
+};
+
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
 
@@ -544,42 +562,7 @@ export default function PaymentsPage() {
     setExpandedPayments(newExpanded);
   };
 
-  // Calculate amount paid from payment history
-  const calculateAmountPaid = (payment: Payment): number => {
-    // Special case: If payment is completed, it should be fully paid
-    if (payment.status === "completed") {
-      return payment.amount;
-    }
-
-    // If no payment history but payment exists, return 0
-    if (
-      !payment.payment_history?.transactions ||
-      payment.payment_history.transactions.length === 0
-    ) {
-      return 0;
-    }
-
-    const total = payment.payment_history.transactions.reduce(
-      (total, transaction) => {
-        const amount = Number(transaction.amount || 0);
-        return total + amount;
-      },
-      0
-    );
-
-    return total;
-  };
-
-  // Calculate remaining amount
-  const calculateRemaining = (payment: Payment): number => {
-    return payment.amount - calculateAmountPaid(payment);
-  };
-
-  // Calculate payment progress percentage
-  const calculateProgress = (payment: Payment): number => {
-    if (payment.amount === 0) return 0;
-    return Math.min((calculateAmountPaid(payment) / payment.amount) * 100, 100);
-  };
+  // Use the helper functions defined above
 
   const formatPaymentHistory = (payment: Payment) => {
     if (
@@ -594,37 +577,62 @@ export default function PaymentsPage() {
     }
 
     return (
-      <div className="mt-2 p-3 bg-gray-50 rounded-lg">
-        <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+      <div className="mt-2 p-4 bg-gray-50 rounded-lg">
+        <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
           <IconClock className="h-4 w-4" />
           Payment History ({payment.payment_history.transactions.length}{" "}
-          transactions)
+          transaction
+          {payment.payment_history.transactions.length !== 1 ? "s" : ""})
         </h4>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {payment.payment_history.transactions.map((transaction, index) => (
             <div
               key={index}
-              className="flex justify-between items-center text-sm"
+              className="flex justify-between items-start p-3 bg-white rounded-lg border"
             >
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span className="font-medium">
-                  ₵{transaction.amount.toFixed(2)}
-                </span>
-                <span className="text-gray-500">
-                  via {transaction.method.replace("_", " ")}
-                </span>
-                {transaction.notes && (
-                  <span className="text-gray-400 text-xs">
-                    - {transaction.notes}
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="font-semibold text-green-600">
+                    ₵{Number(transaction.amount).toFixed(2)}
                   </span>
+                  <Badge variant="outline" className="text-xs">
+                    {transaction.method.replace("_", " ")}
+                  </Badge>
+                </div>
+                <div className="text-gray-500 text-xs">
+                  {new Date(transaction.timestamp).toLocaleString()}
+                </div>
+                {transaction.notes && (
+                  <div className="text-gray-600 text-xs mt-1 italic">
+                    &ldquo;{transaction.notes}&rdquo;
+                  </div>
                 )}
-              </div>
-              <div className="text-gray-500 text-xs">
-                {new Date(transaction.timestamp).toLocaleDateString()}
               </div>
             </div>
           ))}
+        </div>
+        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex justify-between items-center">
+            <div>
+              <div className="text-sm font-semibold text-blue-800">
+                Total Paid: ₵{calculateAmountPaid(payment).toFixed(2)}
+              </div>
+              <div className="text-xs text-blue-600">
+                Out of ₵{payment.amount.toFixed(2)} total
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-medium text-blue-800">
+                {calculatePaymentProgress(payment).toFixed(1)}% Complete
+              </div>
+              {calculateRemainingAmount(payment) > 0 && (
+                <div className="text-xs text-orange-600">
+                  ₵{calculateRemainingAmount(payment).toFixed(2)} remaining
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -958,7 +966,7 @@ export default function PaymentsPage() {
                                   <div className="space-y-1">
                                     {/* Total Due */}
                                     <div className="font-medium text-sm">
-                                      Total: ₵{payment.amount.toFixed(2)}
+                                      Total Due: ₵{payment.amount.toFixed(2)}
                                     </div>
 
                                     {/* Amount Paid */}
@@ -967,10 +975,33 @@ export default function PaymentsPage() {
                                       {calculateAmountPaid(payment).toFixed(2)}
                                     </div>
 
-                                    {/* Remaining */}
-                                    <div className="text-sm text-red-600">
-                                      Remaining: ₵
-                                      {calculateRemaining(payment).toFixed(2)}
+                                    {/* Remaining Amount */}
+                                    {calculateRemainingAmount(payment) > 0 && (
+                                      <div className="text-sm text-orange-600">
+                                        Remaining: ₵
+                                        {calculateRemainingAmount(
+                                          payment
+                                        ).toFixed(2)}
+                                      </div>
+                                    )}
+
+                                    {/* Payment Progress */}
+                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                      <div
+                                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                        style={{
+                                          width: `${Math.min(
+                                            calculatePaymentProgress(payment),
+                                            100
+                                          )}%`,
+                                        }}
+                                      ></div>
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {calculatePaymentProgress(
+                                        payment
+                                      ).toFixed(1)}
+                                      % Complete
                                     </div>
 
                                     {/* Progress Bar - Show for all payments with transactions */}
@@ -982,7 +1013,9 @@ export default function PaymentsPage() {
                                             <span>Progress</span>
                                             <span>
                                               {Math.round(
-                                                calculateProgress(payment)
+                                                calculatePaymentProgress(
+                                                  payment
+                                                )
                                               )}
                                               %
                                             </span>
@@ -990,13 +1023,14 @@ export default function PaymentsPage() {
                                           <div className="w-full bg-gray-200 rounded-full h-2">
                                             <div
                                               className={`h-2 rounded-full transition-all duration-300 ${
-                                                calculateProgress(payment) ===
-                                                100
+                                                calculatePaymentProgress(
+                                                  payment
+                                                ) === 100
                                                   ? "bg-green-500"
                                                   : "bg-blue-600"
                                               }`}
                                               style={{
-                                                width: `${calculateProgress(
+                                                width: `${calculatePaymentProgress(
                                                   payment
                                                 )}%`,
                                               }}
@@ -1162,7 +1196,9 @@ export default function PaymentsPage() {
                   </p>
                   <p>
                     <strong>Remaining:</strong> ₵
-                    {calculateRemaining(selectedPaymentForPartial).toFixed(2)}
+                    {calculateRemainingAmount(
+                      selectedPaymentForPartial
+                    ).toFixed(2)}
                   </p>
                   <p>
                     <strong>Status:</strong> {selectedPaymentForPartial.status}

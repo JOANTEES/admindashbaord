@@ -5,9 +5,19 @@ const API_BASE_URL =
 class ApiClient {
   private baseURL: string;
   private token: string | null = null;
+  private refreshToken: string | null = null;
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
+    this.initializeTokens();
+  }
+
+  // Initialize tokens from localStorage on client side
+  private initializeTokens() {
+    if (typeof window !== "undefined") {
+      this.token = localStorage.getItem("authToken");
+      this.refreshToken = localStorage.getItem("refreshToken");
+    }
   }
 
   // Set JWT token for authenticated requests
@@ -18,12 +28,40 @@ class ApiClient {
     }
   }
 
+  // Set refresh token
+  setRefreshToken(refreshToken: string) {
+    this.refreshToken = refreshToken;
+    if (typeof window !== "undefined") {
+      localStorage.setItem("refreshToken", refreshToken);
+    }
+  }
+
+  // Set both tokens (for login/register responses)
+  setTokens(token: string, refreshToken: string) {
+    this.setToken(token);
+    this.setRefreshToken(refreshToken);
+  }
+
   // Clear JWT token
   clearToken() {
     this.token = null;
     if (typeof window !== "undefined") {
       localStorage.removeItem("authToken");
     }
+  }
+
+  // Clear refresh token
+  clearRefreshToken() {
+    this.refreshToken = null;
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("refreshToken");
+    }
+  }
+
+  // Clear all tokens
+  clearTokens() {
+    this.clearToken();
+    this.clearRefreshToken();
   }
 
   // Get token from localStorage
@@ -35,7 +73,16 @@ class ApiClient {
     return null;
   }
 
-  // Generic request method
+  // Get refresh token
+  getRefreshToken(): string | null {
+    if (this.refreshToken) return this.refreshToken;
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("refreshToken");
+    }
+    return null;
+  }
+
+  // Generic request method with automatic token refresh
   private async request<T = unknown>(
     endpoint: string,
     options: {
@@ -43,8 +90,9 @@ class ApiClient {
       body?: string;
       headers?: Record<string, string>;
       responseType?: string;
+      skipRefresh?: boolean; // Skip refresh for refresh token requests
     } = {}
-  ): Promise<{ data: T; error?: string }> {
+  ): Promise<{ data: T; error?: string; errorCode?: string }> {
     try {
       const token = this.getToken();
       const headers: Record<string, string> = {
@@ -62,9 +110,56 @@ class ApiClient {
         body: options.body,
       });
 
+      // Handle token expiration with automatic refresh
+      if (!response.ok && response.status === 401 && !options.skipRefresh) {
+        try {
+          const errorData = await response.json();
+
+          // Check if it's a token expiration error
+          if (errorData.errorCode === "TOKEN_EXPIRED") {
+            const refreshSuccess = await this.refreshAccessToken();
+            if (refreshSuccess) {
+              // Retry the original request with new token
+              const newToken = this.getToken();
+              if (newToken) {
+                headers["Authorization"] = `Bearer ${newToken}`;
+                const retryResponse = await fetch(
+                  `${this.baseURL}${endpoint}`,
+                  {
+                    method: options.method || "GET",
+                    headers,
+                    body: options.body,
+                  }
+                );
+
+                if (retryResponse.ok) {
+                  if (options.responseType === "blob") {
+                    const blob = await retryResponse.blob();
+                    return { data: blob as T };
+                  }
+                  const data = await retryResponse.json();
+                  return { data };
+                }
+              }
+            }
+          }
+        } catch {
+          // If we can't parse the error, continue with original error handling
+        }
+      }
+
       if (!response.ok) {
-        const errorData = await response.text();
-        return { data: {} as T, error: errorData };
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch {
+          errorData = { message: await response.text() };
+        }
+        return {
+          data: {} as T,
+          error: errorData.message || "Request failed",
+          errorCode: errorData.errorCode,
+        };
       }
 
       // Handle different response types
@@ -79,6 +174,40 @@ class ApiClient {
       console.error("API request failed:", error);
       return { data: {} as T, error: "Network error" };
     }
+  }
+
+  // Refresh access token using refresh token
+  private async refreshAccessToken(): Promise<boolean> {
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) {
+      return false;
+    }
+
+    try {
+      const response = await fetch(`${this.baseURL}/auth/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.token && data.refreshToken) {
+          this.setTokens(data.token, data.refreshToken);
+          return true;
+        }
+      } else {
+        // Refresh failed, clear tokens
+        this.clearTokens();
+      }
+    } catch (error) {
+      console.error("Token refresh failed:", error);
+      this.clearTokens();
+    }
+
+    return false;
   }
 
   // Public HTTP methods for general use
@@ -136,14 +265,22 @@ class ApiClient {
   }
 
   async register(userData: {
+    firstName: string;
+    lastName: string;
     email: string;
     password: string;
-    first_name: string;
-    last_name: string;
   }) {
+    // Convert camelCase to snake_case for backend
+    const backendData = {
+      first_name: userData.firstName,
+      last_name: userData.lastName,
+      email: userData.email,
+      password: userData.password,
+    };
+
     return this.request("/auth/register", {
       method: "POST",
-      body: JSON.stringify(userData),
+      body: JSON.stringify(backendData),
     });
   }
 
@@ -151,9 +288,69 @@ class ApiClient {
     return this.request("/auth/profile");
   }
 
+  async logout() {
+    const response = await this.request("/auth/logout", {
+      method: "POST",
+    });
+    // Clear tokens regardless of response
+    this.clearTokens();
+    return response;
+  }
+
+  async refreshAccessTokenManually() {
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) {
+      return { data: null, error: "No refresh token available" };
+    }
+
+    return this.request("/auth/refresh", {
+      method: "POST",
+      body: JSON.stringify({ refreshToken }),
+      skipRefresh: true, // Don't try to refresh when refreshing
+    });
+  }
+
+  // Google OAuth endpoints
+  async initiateGoogleOAuth() {
+    // This should redirect to the backend OAuth endpoint
+    if (typeof window !== "undefined") {
+      window.location.href = `${this.baseURL.replace(
+        "/api",
+        ""
+      )}/api/auth/google`;
+    }
+  }
+
+  // Password reset endpoints
+  async forgotPassword(email: string) {
+    return this.request("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async verifyResetToken(token: string) {
+    return this.request("/auth/verify-reset-token", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    });
+  }
+
+  async resetPassword(token: string, password: string) {
+    return this.request("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, password }),
+    });
+  }
+
+  // OAuth user info
+  async getOAuthUserInfo() {
+    return this.request("/auth/oauth/user");
+  }
+
   // Products endpoints (using existing backend)
   async getProducts() {
-    return this.request("/products");
+    return this.request<ProductsResponse>("/products");
   }
 
   async getProductById(id: string | number) {
@@ -294,28 +491,52 @@ class ApiClient {
   }
 
   async addClothes(productData: {
+    // Required/basic
     title: string;
     price: number;
     description: string;
-    category: string;
     imageUrl?: string;
-    size: string;
-    color: string;
     stock: number;
+    // New pricing fields per docs
+    costPrice?: number;
+    discountPrice?: number;
+    discountPercent?: number;
+    // New relations per docs
+    brandId?: string | number;
+    categoryId?: string | number;
+    // Legacy/simple fields (kept for backward compat where applicable)
+    category?: string;
+    size?: string;
+    color?: string;
+    // Delivery flags
     requiresSpecialDelivery?: boolean;
     deliveryEligible?: boolean;
     pickupEligible?: boolean;
+    // Optional SKU
+    sku?: string;
   }) {
-    // Map frontend fields to backend schema
+    // Map frontend fields to backend schema (new documented schema)
     const payload = {
       name: productData.title,
       description: productData.description,
       price: productData.price,
+      // pricing
+      cost_price: productData.costPrice,
+      discount_price: productData.discountPrice,
+      discount_percent: productData.discountPercent,
+      // relations
+      brand_id: productData.brandId ? Number(productData.brandId) : undefined,
+      category_id: productData.categoryId
+        ? Number(productData.categoryId)
+        : undefined,
+      // legacy/simple
       category: productData.category,
       size: productData.size,
       color: productData.color,
+      // stock/image
       stock_quantity: productData.stock,
       image_url: productData.imageUrl,
+      // delivery flags
       requires_special_delivery: productData.requiresSpecialDelivery || false,
       delivery_eligible:
         productData.deliveryEligible !== undefined
@@ -325,6 +546,8 @@ class ApiClient {
         productData.pickupEligible !== undefined
           ? productData.pickupEligible
           : true,
+      // sku
+      sku: productData.sku,
     } as Record<string, unknown>;
 
     // Remove undefined to avoid validation issues
@@ -346,28 +569,52 @@ class ApiClient {
       title: string;
       description: string;
       price: number;
-      category: string;
-      size: string;
-      color: string;
+      // pricing
+      costPrice?: number;
+      discountPrice?: number;
+      discountPercent?: number;
+      // relations
+      brandId?: string | number;
+      categoryId?: string | number;
+      // legacy/simple
+      category?: string;
+      size?: string;
+      color?: string;
+      // stock/image
       stock: number;
       imageUrl?: string;
+      // delivery flags
       requiresSpecialDelivery?: boolean;
       deliveryEligible?: boolean;
       pickupEligible?: boolean;
+      // sku
+      sku?: string;
     }>
   ) {
     const payload = {
       name: updates.title,
       description: updates.description,
       price: updates.price,
+      // pricing
+      cost_price: updates.costPrice,
+      discount_price: updates.discountPrice,
+      discount_percent: updates.discountPercent,
+      // relations
+      brand_id: updates.brandId ? Number(updates.brandId) : undefined,
+      category_id: updates.categoryId ? Number(updates.categoryId) : undefined,
+      // legacy/simple
       category: updates.category,
       size: updates.size,
       color: updates.color,
+      // stock/image
       stock_quantity: updates.stock,
       image_url: updates.imageUrl,
+      // delivery flags
       requires_special_delivery: updates.requiresSpecialDelivery,
       delivery_eligible: updates.deliveryEligible,
       pickup_eligible: updates.pickupEligible,
+      // sku
+      sku: updates.sku,
     } as Record<string, unknown>;
 
     Object.keys(payload).forEach((key) => {
@@ -682,6 +929,96 @@ class ApiClient {
     return this.request(`/delivery-zones/${zoneId}/areas`);
   }
 
+  // Brand Management API methods
+  async getBrands() {
+    return this.request("/brands");
+  }
+
+  async getBrand(id: string | number) {
+    return this.request(`/brands/${id}`);
+  }
+
+  async createBrand(data: {
+    name: string;
+    description?: string;
+    logo_url?: string;
+  }) {
+    return this.request("/brands", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateBrand(
+    id: string | number,
+    data: {
+      name?: string;
+      description?: string;
+      logo_url?: string;
+      is_active?: boolean;
+    }
+  ) {
+    return this.request(`/brands/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteBrand(id: string | number) {
+    return this.request(`/brands/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  // Category Management API methods
+  async getCategories() {
+    return this.request("/categories");
+  }
+
+  async getCategoriesFlat() {
+    return this.request("/categories/flat");
+  }
+
+  async getCategory(id: string | number) {
+    return this.request(`/categories/${id}`);
+  }
+
+  async createCategory(data: {
+    name: string;
+    description?: string;
+    parent_id?: number;
+    image_url?: string;
+    sort_order?: number;
+  }) {
+    return this.request("/categories", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCategory(
+    id: string | number,
+    data: {
+      name?: string;
+      description?: string;
+      parent_id?: number;
+      image_url?: string;
+      sort_order?: number;
+      is_active?: boolean;
+    }
+  ) {
+    return this.request(`/categories/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCategory(id: string | number) {
+    return this.request(`/categories/${id}`, {
+      method: "DELETE",
+    });
+  }
+
   // Pickup Locations API methods
   async getPickupLocations() {
     return this.request("/pickup-locations");
@@ -740,6 +1077,63 @@ class ApiClient {
 
   async getAdminPickupLocations() {
     return this.request("/pickup-locations/admin");
+  }
+
+  // Product Variants API methods
+  async getProductVariants(productId: string) {
+    return this.request(`/product-variants/product/${productId}`);
+  }
+
+  async getVariant(variantId: string) {
+    return this.request(`/product-variants/${variantId}`);
+  }
+
+  async createVariant(variantData: {
+    product_id: number;
+    sku?: string;
+    size?: string;
+    color?: string;
+    stock_quantity: number;
+    image_url?: string;
+  }) {
+    return this.request("/product-variants", {
+      method: "POST",
+      body: JSON.stringify(variantData),
+    });
+  }
+
+  async updateVariant(
+    variantId: string,
+    variantData: {
+      sku?: string;
+      size?: string;
+      color?: string;
+      stock_quantity?: number;
+      image_url?: string;
+      is_active?: boolean;
+    }
+  ) {
+    return this.request(`/product-variants/${variantId}`, {
+      method: "PUT",
+      body: JSON.stringify(variantData),
+    });
+  }
+
+  async deleteVariant(variantId: string) {
+    return this.request(`/product-variants/${variantId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getVariantStock(productId: string) {
+    return this.request(`/product-variants/product/${productId}/stock`);
+  }
+
+  async updateVariantStock(variantId: string, stockQuantity: number) {
+    return this.request(`/product-variants/${variantId}/stock`, {
+      method: "PUT",
+      body: JSON.stringify({ stock_quantity: stockQuantity }),
+    });
   }
 }
 
@@ -931,17 +1325,34 @@ export interface Product {
   id: number;
   name: string;
   description: string;
-  price: string;
-  category: string;
-  size: string;
-  color: string;
-  stock_quantity: number;
+  price: number;
+  costPrice?: number;
+  discountPrice?: number;
+  discountPercent?: number;
+  effectivePrice: number;
+  profitMargin?: {
+    costPrice: number;
+    sellingPrice: number;
+    profit: number;
+    margin: number;
+  } | null;
+  brand?: {
+    id: string;
+    name: string;
+  };
+  category?: {
+    id: string;
+    name: string;
+  };
+  legacyCategory?: string;
+  sku?: string;
   image_url: string | null;
   is_active: boolean;
   requires_special_delivery: boolean;
   delivery_eligible: boolean;
   pickup_eligible: boolean;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface AppSettings {
@@ -959,4 +1370,119 @@ export interface AppSettingsResponse {
   success: boolean;
   message: string;
   settings: AppSettings;
+}
+
+// Brand interfaces
+export interface Brand {
+  id: string;
+  name: string;
+  description?: string;
+  logoUrl?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface BrandsResponse {
+  success: boolean;
+  message: string;
+  count: number;
+  brands: Brand[];
+}
+
+export interface BrandResponse {
+  success: boolean;
+  message: string;
+  brand: Brand;
+}
+
+// Category interfaces
+export interface Category {
+  id: string;
+  name: string;
+  description?: string;
+  parentId?: string;
+  imageUrl?: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt?: string;
+  children?: Category[];
+}
+
+export interface CategoriesResponse {
+  success: boolean;
+  message: string;
+  count: number;
+  categories: Category[];
+}
+
+export interface CategoryResponse {
+  success: boolean;
+  message: string;
+  category: Category;
+}
+
+// Product Variant interfaces
+export interface ProductVariant {
+  id: string;
+  productId: string;
+  productName: string;
+  sku?: string;
+  size?: string;
+  color?: string;
+  stockQuantity: number;
+  imageUrl?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ProductVariantsResponse {
+  success: boolean;
+  message: string;
+  product: {
+    id: string;
+    name: string;
+  };
+  count: number;
+  variants: ProductVariant[];
+}
+
+export interface VariantResponse {
+  success: boolean;
+  message: string;
+  variant: ProductVariant;
+}
+
+export interface VariantStockResponse {
+  success: boolean;
+  message: string;
+  product: {
+    id: string;
+    name: string;
+  };
+  totalStock: number;
+  variantCount: number;
+  variants: Array<{
+    id: string;
+    sku?: string;
+    size?: string;
+    color?: string;
+    stockQuantity: number;
+    isActive: boolean;
+  }>;
+}
+
+// Products API Response with inventory summary
+export interface ProductsResponse {
+  success: boolean;
+  message: string;
+  count: number;
+  inventorySummary: {
+    totalInventoryValue: number;
+    totalItemsInStock: number;
+    totalVariants: number;
+  };
+  products: Product[];
 }
