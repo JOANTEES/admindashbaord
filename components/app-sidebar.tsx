@@ -17,6 +17,7 @@ import {
   IconBuildingStore,
   IconTag,
   IconCategory,
+  IconChartBar,
 } from "@tabler/icons-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -53,6 +54,11 @@ const data = {
       title: "Categories",
       url: "/categories",
       icon: IconCategory,
+    },
+    {
+      title: "Reports",
+      url: "/reports",
+      icon: IconChartBar,
     },
     {
       title: "Bookings",
