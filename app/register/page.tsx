@@ -26,15 +26,19 @@ import { useAuth } from "@/contexts/auth-context";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Image from "next/image";
 
-export default function LoginPage() {
+export default function RegisterPage() {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const router = useRouter();
   const {
-    login,
+    register,
     isAuthenticated,
     isLoading: authLoading,
     initiateGoogleOAuth,
@@ -47,17 +51,30 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, authLoading, router]);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match. Please try again.");
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error("Password must be at least 6 characters long.");
+      return;
+    }
+
     setIsLoading(true);
 
-    const result = await login(email, password);
+    const result = await register({ firstName, lastName, email, password });
 
     if (result.success) {
-      toast.success("Login successful! Redirecting to dashboard...");
+      toast.success(
+        "Account created successfully! Redirecting to dashboard..."
+      );
       router.push("/dashboard");
     } else {
-      toast.error(result.error || "Login failed. Please try again.");
+      toast.error(result.error || "Registration failed. Please try again.");
     }
 
     setIsLoading(false);
@@ -68,7 +85,7 @@ export default function LoginPage() {
     try {
       initiateGoogleOAuth();
     } catch (error) {
-      toast.error("Failed to initiate Google login. Please try again.");
+      toast.error("Failed to initiate Google sign-in. Please try again.");
       setIsGoogleLoading(false);
     }
   };
@@ -114,9 +131,9 @@ export default function LoginPage() {
               className="object-contain"
             />
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
+          <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
           <CardDescription>
-            Sign in to access your admin dashboard
+            Sign up to access your admin dashboard
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -130,7 +147,7 @@ export default function LoginPage() {
           >
             <IconBrandGoogle className="h-4 w-4 mr-2" />
             {isGoogleLoading
-              ? "Signing in with Google..."
+              ? "Signing up with Google..."
               : "Continue with Google"}
           </Button>
 
@@ -145,14 +162,39 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleRegister} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input
+                  id="firstName"
+                  type="text"
+                  placeholder="John"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  type="text"
+                  placeholder="Doe"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder="john@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -189,28 +231,45 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Forgot Password Link */}
-            <div className="text-right">
-              <Link
-                href="/forgot-password"
-                className="text-sm text-primary hover:underline"
-              >
-                Forgot your password?
-              </Link>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Confirm your password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  className="pl-10 pr-10"
+                />
+                <IconLock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showConfirmPassword ? (
+                    <IconEyeOff className="h-4 w-4" />
+                  ) : (
+                    <IconEye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
           </form>
 
-          {/* Sign Up Link */}
+          {/* Sign In Link */}
           <div className="mt-4 text-center text-sm">
             <span className="text-muted-foreground">
-              Don't have an account?{" "}
+              Already have an account?{" "}
             </span>
-            <Link href="/register" className="text-primary hover:underline">
-              Sign up
+            <Link href="/login" className="text-primary hover:underline">
+              Sign in
             </Link>
           </div>
         </CardContent>

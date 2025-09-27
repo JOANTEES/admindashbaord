@@ -5,9 +5,19 @@ const API_BASE_URL =
 class ApiClient {
   private baseURL: string;
   private token: string | null = null;
+  private refreshToken: string | null = null;
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
+    this.initializeTokens();
+  }
+
+  // Initialize tokens from localStorage on client side
+  private initializeTokens() {
+    if (typeof window !== "undefined") {
+      this.token = localStorage.getItem("authToken");
+      this.refreshToken = localStorage.getItem("refreshToken");
+    }
   }
 
   // Set JWT token for authenticated requests
@@ -18,12 +28,40 @@ class ApiClient {
     }
   }
 
+  // Set refresh token
+  setRefreshToken(refreshToken: string) {
+    this.refreshToken = refreshToken;
+    if (typeof window !== "undefined") {
+      localStorage.setItem("refreshToken", refreshToken);
+    }
+  }
+
+  // Set both tokens (for login/register responses)
+  setTokens(token: string, refreshToken: string) {
+    this.setToken(token);
+    this.setRefreshToken(refreshToken);
+  }
+
   // Clear JWT token
   clearToken() {
     this.token = null;
     if (typeof window !== "undefined") {
       localStorage.removeItem("authToken");
     }
+  }
+
+  // Clear refresh token
+  clearRefreshToken() {
+    this.refreshToken = null;
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("refreshToken");
+    }
+  }
+
+  // Clear all tokens
+  clearTokens() {
+    this.clearToken();
+    this.clearRefreshToken();
   }
 
   // Get token from localStorage
@@ -35,7 +73,16 @@ class ApiClient {
     return null;
   }
 
-  // Generic request method
+  // Get refresh token
+  getRefreshToken(): string | null {
+    if (this.refreshToken) return this.refreshToken;
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("refreshToken");
+    }
+    return null;
+  }
+
+  // Generic request method with automatic token refresh
   private async request<T = unknown>(
     endpoint: string,
     options: {
@@ -43,8 +90,9 @@ class ApiClient {
       body?: string;
       headers?: Record<string, string>;
       responseType?: string;
+      skipRefresh?: boolean; // Skip refresh for refresh token requests
     } = {}
-  ): Promise<{ data: T; error?: string }> {
+  ): Promise<{ data: T; error?: string; errorCode?: string }> {
     try {
       const token = this.getToken();
       const headers: Record<string, string> = {
@@ -62,9 +110,56 @@ class ApiClient {
         body: options.body,
       });
 
+      // Handle token expiration with automatic refresh
+      if (!response.ok && response.status === 401 && !options.skipRefresh) {
+        try {
+          const errorData = await response.json();
+
+          // Check if it's a token expiration error
+          if (errorData.errorCode === "TOKEN_EXPIRED") {
+            const refreshSuccess = await this.refreshAccessToken();
+            if (refreshSuccess) {
+              // Retry the original request with new token
+              const newToken = this.getToken();
+              if (newToken) {
+                headers["Authorization"] = `Bearer ${newToken}`;
+                const retryResponse = await fetch(
+                  `${this.baseURL}${endpoint}`,
+                  {
+                    method: options.method || "GET",
+                    headers,
+                    body: options.body,
+                  }
+                );
+
+                if (retryResponse.ok) {
+                  if (options.responseType === "blob") {
+                    const blob = await retryResponse.blob();
+                    return { data: blob as T };
+                  }
+                  const data = await retryResponse.json();
+                  return { data };
+                }
+              }
+            }
+          }
+        } catch (parseError) {
+          // If we can't parse the error, continue with original error handling
+        }
+      }
+
       if (!response.ok) {
-        const errorData = await response.text();
-        return { data: {} as T, error: errorData };
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch {
+          errorData = { message: await response.text() };
+        }
+        return {
+          data: {} as T,
+          error: errorData.message || "Request failed",
+          errorCode: errorData.errorCode,
+        };
       }
 
       // Handle different response types
@@ -79,6 +174,40 @@ class ApiClient {
       console.error("API request failed:", error);
       return { data: {} as T, error: "Network error" };
     }
+  }
+
+  // Refresh access token using refresh token
+  private async refreshAccessToken(): Promise<boolean> {
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) {
+      return false;
+    }
+
+    try {
+      const response = await fetch(`${this.baseURL}/auth/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.token && data.refreshToken) {
+          this.setTokens(data.token, data.refreshToken);
+          return true;
+        }
+      } else {
+        // Refresh failed, clear tokens
+        this.clearTokens();
+      }
+    } catch (error) {
+      console.error("Token refresh failed:", error);
+      this.clearTokens();
+    }
+
+    return false;
   }
 
   // Public HTTP methods for general use
@@ -136,19 +265,87 @@ class ApiClient {
   }
 
   async register(userData: {
+    firstName: string;
+    lastName: string;
     email: string;
     password: string;
-    first_name: string;
-    last_name: string;
   }) {
+    // Convert camelCase to snake_case for backend
+    const backendData = {
+      first_name: userData.firstName,
+      last_name: userData.lastName,
+      email: userData.email,
+      password: userData.password,
+    };
+
     return this.request("/auth/register", {
       method: "POST",
-      body: JSON.stringify(userData),
+      body: JSON.stringify(backendData),
     });
   }
 
   async getProfile() {
     return this.request("/auth/profile");
+  }
+
+  async logout() {
+    const response = await this.request("/auth/logout", {
+      method: "POST",
+    });
+    // Clear tokens regardless of response
+    this.clearTokens();
+    return response;
+  }
+
+  async refreshToken() {
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) {
+      return { data: null, error: "No refresh token available" };
+    }
+
+    return this.request("/auth/refresh", {
+      method: "POST",
+      body: JSON.stringify({ refreshToken }),
+      skipRefresh: true, // Don't try to refresh when refreshing
+    });
+  }
+
+  // Google OAuth endpoints
+  async initiateGoogleOAuth() {
+    // This should redirect to the backend OAuth endpoint
+    if (typeof window !== "undefined") {
+      window.location.href = `${this.baseURL.replace(
+        "/api",
+        ""
+      )}/api/auth/google`;
+    }
+  }
+
+  // Password reset endpoints
+  async forgotPassword(email: string) {
+    return this.request("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async verifyResetToken(token: string) {
+    return this.request("/auth/verify-reset-token", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    });
+  }
+
+  async resetPassword(token: string, password: string) {
+    return this.request("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, password }),
+    });
+  }
+
+  // OAuth user info
+  async getOAuthUserInfo() {
+    return this.request("/auth/oauth/user");
   }
 
   // Products endpoints (using existing backend)
