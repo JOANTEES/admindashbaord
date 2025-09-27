@@ -188,11 +188,17 @@ export default function ReportsPage() {
         `/reports/overall-metrics?${params}`
       );
 
-      if (response.success) {
-        setOverallMetrics(response.data.summary);
-        setTopProducts(response.data.topProducts || []);
-        setSalesByDelivery(response.data.salesByDeliveryMethod || []);
-        setSalesByPayment(response.data.salesByPaymentMethod || []);
+      if (response.data && !response.error) {
+        const data = response.data as {
+          summary: OverallMetrics;
+          topProducts: TopProduct[];
+          salesByDeliveryMethod: SalesByMethod[];
+          salesByPaymentMethod: SalesByMethod[];
+        };
+        setOverallMetrics(data.summary);
+        setTopProducts(data.topProducts || []);
+        setSalesByDelivery(data.salesByDeliveryMethod || []);
+        setSalesByPayment(data.salesByPaymentMethod || []);
       }
     } catch (error) {
       console.error("Error fetching overall metrics:", error);
@@ -214,8 +220,9 @@ export default function ReportsPage() {
 
       const response = await apiClient.get(`/reports/profit-margins?${params}`);
 
-      if (response.success) {
-        setProfitMargins(response.data.products || []);
+      if (response.data && !response.error) {
+        const data = response.data as { products: ProductProfit[] };
+        setProfitMargins(data.products || []);
       }
     } catch (error) {
       console.error("Error fetching profit margins:", error);
@@ -236,8 +243,9 @@ export default function ReportsPage() {
 
       const response = await apiClient.get(`/reports/sales-trends?${params}`);
 
-      if (response.success) {
-        setSalesTrends(response.data.trends || []);
+      if (response.data && !response.error) {
+        const data = response.data as { trends: TrendData[] };
+        setSalesTrends(data.trends || []);
       }
     } catch (error) {
       console.error("Error fetching sales trends:", error);
@@ -252,10 +260,15 @@ export default function ReportsPage() {
       setLoading(true);
       const response = await apiClient.get("/reports/inventory-status");
 
-      if (response.success) {
-        setInventorySummary(response.data.summary);
-        setLowStockProducts(response.data.lowStockProducts || []);
-        setOutOfStockProducts(response.data.outOfStockProducts || []);
+      if (response.data && !response.error) {
+        const data = response.data as {
+          summary: InventorySummary;
+          lowStockProducts: LowStockProduct[];
+          outOfStockProducts: LowStockProduct[];
+        };
+        setInventorySummary(data.summary);
+        setLowStockProducts(data.lowStockProducts || []);
+        setOutOfStockProducts(data.outOfStockProducts || []);
       }
     } catch (error) {
       console.error("Error fetching inventory status:", error);
@@ -276,10 +289,15 @@ export default function ReportsPage() {
         `/reports/customer-insights?${params}`
       );
 
-      if (response.success) {
-        setCustomerSummary(response.data.summary);
-        setTopCustomers(response.data.topCustomers || []);
-        setAcquisitionTrends(response.data.acquisitionTrends || []);
+      if (response.data && !response.error) {
+        const data = response.data as {
+          summary: CustomerSummary;
+          topCustomers: TopCustomer[];
+          acquisitionTrends: AcquisitionTrend[];
+        };
+        setCustomerSummary(data.summary);
+        setTopCustomers(data.topCustomers || []);
+        setAcquisitionTrends(data.acquisitionTrends || []);
       }
     } catch (error) {
       console.error("Error fetching customer insights:", error);
@@ -664,7 +682,8 @@ export default function ReportsPage() {
                       <TableCell>
                         <div>
                           <p>{formatCurrency(product.effectivePrice)}</p>
-                          {product.hasDiscount && (
+                          {(product.discountPrice ||
+                            product.discountPercent) && (
                             <p className="text-sm text-gray-600 line-through">
                               {formatCurrency(product.originalPrice)}
                             </p>

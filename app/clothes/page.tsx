@@ -76,6 +76,7 @@ export default function ClothesPage() {
     category: "",
     size: "",
     color: "",
+    stock: "",
     imageUrl: "",
     requiresSpecialDelivery: false,
     deliveryEligible: true,
@@ -101,6 +102,7 @@ export default function ClothesPage() {
     category: "",
     size: "",
     color: "",
+    stock: "",
     imageUrl: "",
     requiresSpecialDelivery: false,
     deliveryEligible: true,
@@ -199,13 +201,15 @@ export default function ClothesPage() {
         .categories;
       setBrands(Array.isArray(brandsData) ? brandsData : []);
       setCategoriesFlat(Array.isArray(catsData) ? catsData : []);
-    } catch (e) {
+    } catch {
       // non-fatal
     }
   };
 
   // Function to build full category path
-  const getCategoryPath = (category: any): string => {
+  const getCategoryPath = (
+    category: string | { id: string; name: string } | undefined
+  ): string => {
     if (typeof category === "string") {
       return category;
     }
@@ -306,6 +310,7 @@ export default function ClothesPage() {
         category: formData.category,
         size: formData.size,
         color: formData.color,
+        stock: parseInt(formData.stock) || 0,
         imageUrl,
         requiresSpecialDelivery: formData.requiresSpecialDelivery,
         deliveryEligible: formData.deliveryEligible,
@@ -387,13 +392,17 @@ export default function ClothesPage() {
         item.discountPrice !== undefined ? String(item.discountPrice) : "",
       discountPercent:
         item.discountPercent !== undefined ? String(item.discountPercent) : "",
-      brandId: (item as any).brand?.id || "",
-      categoryId: (item as any).category?.id || "",
-      sku: (item as any).sku || "",
+      brandId: item.brand?.id || "",
+      categoryId: item.category?.id || "",
+      sku: item.sku || "",
       description: item.description || "",
-      category: item.category || "",
-      size: item.size || "",
-      color: item.color || "",
+      category:
+        typeof item.category === "string"
+          ? item.category
+          : item.category?.name || "",
+      size: "",
+      color: "",
+      stock: "0",
       imageUrl: item.image_url || "",
       requiresSpecialDelivery: item.requires_special_delivery || false,
       deliveryEligible:
@@ -445,6 +454,7 @@ export default function ClothesPage() {
         category: editFormData.category,
         size: editFormData.size,
         color: editFormData.color,
+        stock: parseInt(editFormData.stock) || 0,
         imageUrl,
         requiresSpecialDelivery: editFormData.requiresSpecialDelivery,
         deliveryEligible: editFormData.deliveryEligible,
@@ -1380,7 +1390,7 @@ export default function ClothesPage() {
                             </Badge>
                             {/* Delivery/Pickup Badges */}
                             <div className="flex flex-wrap gap-1">
-                              {item.requiresSpecialDelivery && (
+                              {item.requires_special_delivery && (
                                 <Badge
                                   variant="outline"
                                   className="text-xs bg-orange-100 text-orange-700 border-orange-200"
@@ -1388,7 +1398,7 @@ export default function ClothesPage() {
                                   Special Delivery
                                 </Badge>
                               )}
-                              {!item.deliveryEligible && (
+                              {!item.delivery_eligible && (
                                 <Badge
                                   variant="outline"
                                   className="text-xs bg-red-100 text-red-700 border-red-200"
@@ -1396,7 +1406,7 @@ export default function ClothesPage() {
                                   No Delivery
                                 </Badge>
                               )}
-                              {!item.pickupEligible && (
+                              {!item.pickup_eligible && (
                                 <Badge
                                   variant="outline"
                                   className="text-xs bg-red-100 text-red-700 border-red-200"
