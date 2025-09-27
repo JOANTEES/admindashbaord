@@ -153,7 +153,7 @@ class ApiClient {
 
   // Products endpoints (using existing backend)
   async getProducts() {
-    return this.request("/products");
+    return this.request<ProductsResponse>("/products");
   }
 
   async getProductById(id: string | number) {
@@ -1128,17 +1128,34 @@ export interface Product {
   id: number;
   name: string;
   description: string;
-  price: string;
-  category: string;
-  size: string;
-  color: string;
-  stock_quantity: number;
+  price: number;
+  costPrice?: number;
+  discountPrice?: number;
+  discountPercent?: number;
+  effectivePrice: number;
+  profitMargin?: {
+    costPrice: number;
+    sellingPrice: number;
+    profit: number;
+    margin: number;
+  } | null;
+  brand?: {
+    id: string;
+    name: string;
+  };
+  category?: {
+    id: string;
+    name: string;
+  };
+  legacyCategory?: string;
+  sku?: string;
   image_url: string | null;
   is_active: boolean;
   requires_special_delivery: boolean;
   delivery_eligible: boolean;
   pickup_eligible: boolean;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface AppSettings {
@@ -1258,4 +1275,17 @@ export interface VariantStockResponse {
     stockQuantity: number;
     isActive: boolean;
   }>;
+}
+
+// Products API Response with inventory summary
+export interface ProductsResponse {
+  success: boolean;
+  message: string;
+  count: number;
+  inventorySummary: {
+    totalInventoryValue: number;
+    totalItemsInStock: number;
+    totalVariants: number;
+  };
+  products: Product[];
 }

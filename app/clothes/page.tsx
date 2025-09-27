@@ -41,7 +41,13 @@ import {
   IconEdit,
   IconLoader,
 } from "@tabler/icons-react";
-import { apiClient, Product, Brand, Category } from "@/lib/api";
+import {
+  apiClient,
+  Product,
+  Brand,
+  Category,
+  ProductsResponse,
+} from "@/lib/api";
 import { toast } from "sonner";
 import { ProtectedRoute } from "@/components/protected-route";
 import Image from "next/image";
@@ -109,6 +115,11 @@ export default function ClothesPage() {
 
   const [brands, setBrands] = useState<Brand[]>([]);
   const [categoriesFlat, setCategoriesFlat] = useState<Category[]>([]);
+  const [inventorySummary, setInventorySummary] = useState<{
+    totalInventoryValue: number;
+    totalItemsInStock: number;
+    totalVariants: number;
+  } | null>(null);
 
   // Build hierarchical labels for categories (e.g., "Men's Clothing / T-Shirts")
   const categoryById = useMemo(() => {
@@ -226,25 +237,25 @@ export default function ClothesPage() {
   const fetchClothes = async () => {
     try {
       setIsLoading(true);
-      const response = await apiClient.getClothes();
-
-      interface ProductsResponse {
-        message: string;
-        count: number;
-        products: Product[];
-      }
+      const response = await apiClient.getProducts();
 
       if (response.data && (response.data as ProductsResponse).products) {
-        setClothes((response.data as ProductsResponse).products);
+        const data = response.data as ProductsResponse;
+        setClothes(data.products);
+        setInventorySummary(data.inventorySummary);
       } else if (response.data && Array.isArray(response.data)) {
+        // Fallback for old response format
         setClothes(response.data);
+        setInventorySummary(null);
       } else {
         setClothes([]);
+        setInventorySummary(null);
       }
     } catch (error) {
       console.error("Error fetching clothes:", error);
       toast.error("Failed to load clothes");
       setClothes([]);
+      setInventorySummary(null);
     } finally {
       setIsLoading(false);
     }
@@ -491,13 +502,8 @@ export default function ClothesPage() {
       }
     });
 
-  // Total value calculation - since stock is now managed per variant,
-  // we can't calculate total inventory value without variant data
-  // For now, just show the sum of product prices
-  const totalValue = filteredAndSortedClothes.reduce(
-    (sum, item) => sum + (item.effectivePrice || item.price),
-    0
-  );
+  // Use backend-provided inventory value instead of manual calculation
+  const totalValue = inventorySummary?.totalInventoryValue || 0;
 
   const categories = Array.from(
     new Set(clothes.map((item) => getCategoryPath(item.category)))
@@ -1231,13 +1237,13 @@ export default function ClothesPage() {
                   {/* Stats Card */}
                   <Card className="mb-6">
                     <CardContent className="pt-6">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className="text-center">
                           <div className="text-2xl font-bold">
                             {clothes.length}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            Total Items
+                            Total Products
                           </div>
                         </div>
                         <div className="text-center">
@@ -1245,7 +1251,15 @@ export default function ClothesPage() {
                             {filteredAndSortedClothes.length}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            Filtered Items
+                            Filtered Products
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-blue-500">
+                            {inventorySummary?.totalItemsInStock || 0}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Total Items in Stock
                           </div>
                         </div>
                         <div className="text-center">
@@ -1253,7 +1267,7 @@ export default function ClothesPage() {
                             ₵{totalValue.toFixed(2)}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            Total Product Value
+                            Total Inventory Value
                           </div>
                         </div>
                       </div>
