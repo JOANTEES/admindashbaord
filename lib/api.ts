@@ -294,28 +294,52 @@ class ApiClient {
   }
 
   async addClothes(productData: {
+    // Required/basic
     title: string;
     price: number;
     description: string;
-    category: string;
     imageUrl?: string;
-    size: string;
-    color: string;
     stock: number;
+    // New pricing fields per docs
+    costPrice?: number;
+    discountPrice?: number;
+    discountPercent?: number;
+    // New relations per docs
+    brandId?: string | number;
+    categoryId?: string | number;
+    // Legacy/simple fields (kept for backward compat where applicable)
+    category?: string;
+    size?: string;
+    color?: string;
+    // Delivery flags
     requiresSpecialDelivery?: boolean;
     deliveryEligible?: boolean;
     pickupEligible?: boolean;
+    // Optional SKU
+    sku?: string;
   }) {
-    // Map frontend fields to backend schema
+    // Map frontend fields to backend schema (new documented schema)
     const payload = {
       name: productData.title,
       description: productData.description,
       price: productData.price,
+      // pricing
+      cost_price: productData.costPrice,
+      discount_price: productData.discountPrice,
+      discount_percent: productData.discountPercent,
+      // relations
+      brand_id: productData.brandId ? Number(productData.brandId) : undefined,
+      category_id: productData.categoryId
+        ? Number(productData.categoryId)
+        : undefined,
+      // legacy/simple
       category: productData.category,
       size: productData.size,
       color: productData.color,
+      // stock/image
       stock_quantity: productData.stock,
       image_url: productData.imageUrl,
+      // delivery flags
       requires_special_delivery: productData.requiresSpecialDelivery || false,
       delivery_eligible:
         productData.deliveryEligible !== undefined
@@ -325,6 +349,8 @@ class ApiClient {
         productData.pickupEligible !== undefined
           ? productData.pickupEligible
           : true,
+      // sku
+      sku: productData.sku,
     } as Record<string, unknown>;
 
     // Remove undefined to avoid validation issues
@@ -346,28 +372,52 @@ class ApiClient {
       title: string;
       description: string;
       price: number;
-      category: string;
-      size: string;
-      color: string;
+      // pricing
+      costPrice?: number;
+      discountPrice?: number;
+      discountPercent?: number;
+      // relations
+      brandId?: string | number;
+      categoryId?: string | number;
+      // legacy/simple
+      category?: string;
+      size?: string;
+      color?: string;
+      // stock/image
       stock: number;
       imageUrl?: string;
+      // delivery flags
       requiresSpecialDelivery?: boolean;
       deliveryEligible?: boolean;
       pickupEligible?: boolean;
+      // sku
+      sku?: string;
     }>
   ) {
     const payload = {
       name: updates.title,
       description: updates.description,
       price: updates.price,
+      // pricing
+      cost_price: updates.costPrice,
+      discount_price: updates.discountPrice,
+      discount_percent: updates.discountPercent,
+      // relations
+      brand_id: updates.brandId ? Number(updates.brandId) : undefined,
+      category_id: updates.categoryId ? Number(updates.categoryId) : undefined,
+      // legacy/simple
       category: updates.category,
       size: updates.size,
       color: updates.color,
+      // stock/image
       stock_quantity: updates.stock,
       image_url: updates.imageUrl,
+      // delivery flags
       requires_special_delivery: updates.requiresSpecialDelivery,
       delivery_eligible: updates.deliveryEligible,
       pickup_eligible: updates.pickupEligible,
+      // sku
+      sku: updates.sku,
     } as Record<string, unknown>;
 
     Object.keys(payload).forEach((key) => {
