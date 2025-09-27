@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -47,6 +48,7 @@ import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 
 export default function ClothesPage() {
+  const router = useRouter();
   const [clothes, setClothes] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -489,6 +491,9 @@ export default function ClothesPage() {
       }
     });
 
+  // Total value calculation - since stock is now managed per variant,
+  // we can't calculate total inventory value without variant data
+  // For now, just show the sum of product prices
   const totalValue = filteredAndSortedClothes.reduce(
     (sum, item) => sum + (item.effectivePrice || item.price),
     0
@@ -1248,7 +1253,7 @@ export default function ClothesPage() {
                             ₵{totalValue.toFixed(2)}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            Total Value
+                            Total Product Value
                           </div>
                         </div>
                       </div>
@@ -1394,11 +1399,7 @@ export default function ClothesPage() {
                                 size="sm"
                                 className="text-xs"
                                 onClick={() => {
-                                  // TODO: Navigate to variants management page
-                                  console.log(
-                                    "Manage variants for product:",
-                                    item.id
-                                  );
+                                  router.push(`/products/${item.id}/variants`);
                                 }}
                               >
                                 Manage Variants

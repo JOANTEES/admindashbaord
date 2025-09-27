@@ -881,6 +881,63 @@ class ApiClient {
   async getAdminPickupLocations() {
     return this.request("/pickup-locations/admin");
   }
+
+  // Product Variants API methods
+  async getProductVariants(productId: string) {
+    return this.request(`/product-variants/product/${productId}`);
+  }
+
+  async getVariant(variantId: string) {
+    return this.request(`/product-variants/${variantId}`);
+  }
+
+  async createVariant(variantData: {
+    product_id: number;
+    sku?: string;
+    size?: string;
+    color?: string;
+    stock_quantity: number;
+    image_url?: string;
+  }) {
+    return this.request("/product-variants", {
+      method: "POST",
+      body: JSON.stringify(variantData),
+    });
+  }
+
+  async updateVariant(
+    variantId: string,
+    variantData: {
+      sku?: string;
+      size?: string;
+      color?: string;
+      stock_quantity?: number;
+      image_url?: string;
+      is_active?: boolean;
+    }
+  ) {
+    return this.request(`/product-variants/${variantId}`, {
+      method: "PUT",
+      body: JSON.stringify(variantData),
+    });
+  }
+
+  async deleteVariant(variantId: string) {
+    return this.request(`/product-variants/${variantId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getVariantStock(productId: string) {
+    return this.request(`/product-variants/product/${productId}/stock`);
+  }
+
+  async updateVariantStock(variantId: string, stockQuantity: number) {
+    return this.request(`/product-variants/${variantId}/stock`, {
+      method: "PUT",
+      body: JSON.stringify({ stock_quantity: stockQuantity }),
+    });
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
@@ -1150,4 +1207,55 @@ export interface CategoryResponse {
   success: boolean;
   message: string;
   category: Category;
+}
+
+// Product Variant interfaces
+export interface ProductVariant {
+  id: string;
+  productId: string;
+  productName: string;
+  sku?: string;
+  size?: string;
+  color?: string;
+  stockQuantity: number;
+  imageUrl?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ProductVariantsResponse {
+  success: boolean;
+  message: string;
+  product: {
+    id: string;
+    name: string;
+  };
+  count: number;
+  variants: ProductVariant[];
+}
+
+export interface VariantResponse {
+  success: boolean;
+  message: string;
+  variant: ProductVariant;
+}
+
+export interface VariantStockResponse {
+  success: boolean;
+  message: string;
+  product: {
+    id: string;
+    name: string;
+  };
+  totalStock: number;
+  variantCount: number;
+  variants: Array<{
+    id: string;
+    sku?: string;
+    size?: string;
+    color?: string;
+    stockQuantity: number;
+    isActive: boolean;
+  }>;
 }
