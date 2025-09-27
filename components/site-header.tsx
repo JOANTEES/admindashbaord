@@ -53,9 +53,11 @@ export function SiteHeader() {
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
                   {user?.profile_picture_url ? (
-                    <img
+                    <Image
                       src={user.profile_picture_url}
                       alt={`${user.first_name} ${user.last_name}`}
+                      width={32}
+                      height={32}
                       className="h-8 w-8 rounded-full object-cover"
                     />
                   ) : (

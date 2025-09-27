@@ -67,7 +67,7 @@ export default function LoginPage() {
     setIsGoogleLoading(true);
     try {
       initiateGoogleOAuth();
-    } catch (error) {
+    } catch {
       toast.error("Failed to initiate Google login. Please try again.");
       setIsGoogleLoading(false);
     }
@@ -207,7 +207,7 @@ export default function LoginPage() {
           {/* Sign Up Link */}
           <div className="mt-4 text-center text-sm">
             <span className="text-muted-foreground">
-              Don't have an account?{" "}
+              Don&apos;t have an account?{" "}
             </span>
             <Link href="/register" className="text-primary hover:underline">
               Sign up

@@ -84,7 +84,7 @@ export default function RegisterPage() {
     setIsGoogleLoading(true);
     try {
       initiateGoogleOAuth();
-    } catch (error) {
+    } catch {
       toast.error("Failed to initiate Google sign-in. Please try again.");
       setIsGoogleLoading(false);
     }

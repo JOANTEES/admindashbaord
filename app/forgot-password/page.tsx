@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +22,6 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const router = useRouter();
   const { forgotPassword } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,8 +80,8 @@ export default function ForgotPasswordPage() {
           </CardTitle>
           <CardDescription>
             {isSubmitted
-              ? "We've sent a password reset link to your email address"
-              : "Enter your email address and we'll send you a link to reset your password"}
+              ? "We&apos;ve sent a password reset link to your email address"
+              : "Enter your email address and we&apos;ll send you a link to reset your password"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -117,14 +115,15 @@ export default function ForgotPasswordPage() {
 
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  We've sent a password reset link to:
+                  We&apos;ve sent a password reset link to:
                 </p>
                 <p className="font-medium text-sm">{email}</p>
               </div>
 
               <div className="space-y-3">
                 <p className="text-xs text-muted-foreground">
-                  Didn't receive the email? Check your spam folder or try again.
+                  Didn&apos;t receive the email? Check your spam folder or try
+                  again.
                 </p>
 
                 <div className="flex flex-col space-y-2">

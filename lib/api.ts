@@ -143,7 +143,7 @@ class ApiClient {
               }
             }
           }
-        } catch (parseError) {
+        } catch {
           // If we can't parse the error, continue with original error handling
         }
       }
@@ -297,7 +297,7 @@ class ApiClient {
     return response;
   }
 
-  async refreshToken() {
+  async refreshAccessTokenManually() {
     const refreshToken = this.getRefreshToken();
     if (!refreshToken) {
       return { data: null, error: "No refresh token available" };
