@@ -1346,13 +1346,13 @@ export interface Product {
   };
   legacyCategory?: string;
   sku?: string;
-  image_url: string | null;
+  imageUrl: string | null;
   is_active: boolean;
-  requires_special_delivery: boolean;
-  delivery_eligible: boolean;
-  pickup_eligible: boolean;
-  created_at: string;
-  updated_at?: string;
+  requiresSpecialDelivery: boolean;
+  deliveryEligible: boolean;
+  pickupEligible: boolean;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface AppSettings {

@@ -44,14 +44,13 @@ interface AuthContextType {
     token: string,
     password: string
   ) => Promise<{ success: boolean; error?: string }>;
-  verifyResetToken: (
-    token: string
-  ) => Promise<{
+  verifyResetToken: (token: string) => Promise<{
     success: boolean;
     error?: string;
     user?: { email: string; first_name: string };
   }>;
   initiateGoogleOAuth: () => void;
+  refreshAuthState: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -63,41 +62,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   // Initialize authentication state on mount
-  useEffect(() => {
-    const initializeAuth = async () => {
-      const token = apiClient.getToken();
-      const refreshToken = apiClient.getRefreshToken();
+  const initializeAuth = async () => {
+    const token = apiClient.getToken();
+    const refreshToken = apiClient.getRefreshToken();
 
-      if (token && refreshToken) {
-        try {
-          // Verify token is still valid by getting profile
-          const response = await apiClient.getProfile();
-          if (response.data && !response.error) {
-            const userData = (response.data as any).user;
-            setUser(userData);
-            setIsAuthenticated(true);
-          } else {
-            // Token is invalid, clear everything
-            apiClient.clearTokens();
-            setIsAuthenticated(false);
-            setUser(null);
-          }
-        } catch (error) {
-          console.error("Auth initialization error:", error);
+    if (token && refreshToken) {
+      try {
+        // Verify token is still valid by getting profile
+        const response = await apiClient.getProfile();
+        if (response.data && !response.error) {
+          const userData = (response.data as any).user;
+          setUser(userData);
+          setIsAuthenticated(true);
+        } else {
+          // Token is invalid, clear everything
           apiClient.clearTokens();
           setIsAuthenticated(false);
           setUser(null);
         }
-      } else {
+      } catch (error) {
+        console.error("Auth initialization error:", error);
+        apiClient.clearTokens();
         setIsAuthenticated(false);
         setUser(null);
       }
+    } else {
+      setIsAuthenticated(false);
+      setUser(null);
+    }
 
-      setIsLoading(false);
-    };
+    setIsLoading(false);
+  };
 
+  useEffect(() => {
     initializeAuth();
   }, []);
+
+  // Method to refresh authentication state (useful after OAuth callback)
+  const refreshAuthState = async () => {
+    setIsLoading(true);
+    await initializeAuth();
+  };
 
   const login = async (
     email: string,
@@ -290,6 +295,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         verifyResetToken,
         resetPassword,
         initiateGoogleOAuth,
+        refreshAuthState,
       }}
     >
       {children}
