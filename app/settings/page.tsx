@@ -53,11 +53,20 @@ export default function SettingsPage() {
     try {
       setIsLoading(true);
       const response = await apiClient.getAppSettings();
-      setSettings(response.data.settings);
-      setOriginalSettings(response.data.settings);
+
+      // Check if response has data and settings
+      if (response.data && response.data.settings) {
+        setSettings(response.data.settings);
+        setOriginalSettings(response.data.settings);
+      } else {
+        // Use default settings if API doesn't return data
+        console.warn("Settings API returned no data, using defaults");
+        toast.info("Using default settings - API endpoint not available");
+      }
     } catch (error) {
       console.error("Error fetching settings:", error);
-      toast.error("Failed to load settings");
+      toast.error("Failed to load settings - using defaults");
+      // Keep the default settings that were initialized
     } finally {
       setIsLoading(false);
     }
@@ -112,7 +121,7 @@ export default function SettingsPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || !settings) {
     return (
       <ProtectedRoute>
         <SidebarProvider
