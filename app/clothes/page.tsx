@@ -403,12 +403,12 @@ export default function ClothesPage() {
       size: "",
       color: "",
       stock: "0",
-      imageUrl: item.image_url || "",
-      requiresSpecialDelivery: item.requires_special_delivery || false,
+      imageUrl: item.imageUrl || "",
+      requiresSpecialDelivery: item.requiresSpecialDelivery || false,
       deliveryEligible:
-        item.delivery_eligible !== undefined ? item.delivery_eligible : true,
+        item.deliveryEligible !== undefined ? item.deliveryEligible : true,
       pickupEligible:
-        item.pickup_eligible !== undefined ? item.pickup_eligible : true,
+        item.pickupEligible !== undefined ? item.pickupEligible : true,
     });
     setIsEditDialogOpen(true);
   };
@@ -1341,9 +1341,9 @@ export default function ClothesPage() {
                     {filteredAndSortedClothes.map((item) => (
                       <Card key={item.id} className="overflow-hidden">
                         <div className="aspect-square relative bg-muted">
-                          {item.image_url ? (
+                          {item.imageUrl ? (
                             <Image
-                              src={item.image_url}
+                              src={item.imageUrl}
                               alt={item.name}
                               fill
                               className="object-cover"
@@ -1390,7 +1390,7 @@ export default function ClothesPage() {
                             </Badge>
                             {/* Delivery/Pickup Badges */}
                             <div className="flex flex-wrap gap-1">
-                              {item.requires_special_delivery && (
+                              {item.requiresSpecialDelivery && (
                                 <Badge
                                   variant="outline"
                                   className="text-xs bg-orange-100 text-orange-700 border-orange-200"
@@ -1398,20 +1398,20 @@ export default function ClothesPage() {
                                   Special Delivery
                                 </Badge>
                               )}
-                              {!item.delivery_eligible && (
+                              {item.deliveryEligible && (
                                 <Badge
                                   variant="outline"
-                                  className="text-xs bg-red-100 text-red-700 border-red-200"
+                                  className="text-xs bg-green-100 text-green-700 border-green-200"
                                 >
-                                  No Delivery
+                                  Delivery Available
                                 </Badge>
                               )}
-                              {!item.pickup_eligible && (
+                              {item.pickupEligible && (
                                 <Badge
                                   variant="outline"
-                                  className="text-xs bg-red-100 text-red-700 border-red-200"
+                                  className="text-xs bg-blue-100 text-blue-700 border-blue-200"
                                 >
-                                  No Pickup
+                                  Pickup Available
                                 </Badge>
                               )}
                             </div>

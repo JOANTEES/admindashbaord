@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
+import { useAuth } from "@/contexts/auth-context";
 import {
   Card,
   CardContent,
@@ -22,6 +23,7 @@ function AuthCallbackContent() {
   const [error, setError] = useState<string>("");
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { refreshAuthState } = useAuth();
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -43,20 +45,16 @@ function AuthCallbackContent() {
           // Store tokens
           apiClient.setTokens(token, refreshToken);
 
-          // Get user profile to update auth context
-          const profileResponse = await apiClient.getProfile();
-          if (profileResponse.data && !profileResponse.error) {
-            setStatus("success");
-            toast.success("Successfully signed in with Google!");
+          // Refresh authentication state to load user profile
+          await refreshAuthState();
 
-            // Redirect to dashboard after a short delay
-            setTimeout(() => {
-              router.push("/dashboard");
-            }, 1500);
-          } else {
-            setStatus("error");
-            setError("Failed to load user profile. Please try again.");
-          }
+          setStatus("success");
+          toast.success("Successfully signed in with Google!");
+
+          // Redirect to dashboard after a short delay
+          setTimeout(() => {
+            router.push("/dashboard");
+          }, 1500);
         } else {
           setStatus("error");
           setError("Invalid authentication response. Please try again.");
