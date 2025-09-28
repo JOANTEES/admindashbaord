@@ -312,12 +312,12 @@ class ApiClient {
 
   // Google OAuth endpoints
   async initiateGoogleOAuth() {
-    // This should redirect to the backend OAuth endpoint
+    // This should redirect to the backend OAuth endpoint with admin state
     if (typeof window !== "undefined") {
       window.location.href = `${this.baseURL.replace(
         "/api",
         ""
-      )}/api/auth/google`;
+      )}/api/auth/google?state=admin`;
     }
   }
 
