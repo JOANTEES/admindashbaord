@@ -81,11 +81,6 @@ export function SiteHeader() {
                   <p className="text-xs leading-none text-muted-foreground">
                     {user?.email}
                   </p>
-                  {user?.oauth_provider && (
-                    <p className="text-xs leading-none text-muted-foreground capitalize">
-                      Signed in with {user.oauth_provider}
-                    </p>
-                  )}
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

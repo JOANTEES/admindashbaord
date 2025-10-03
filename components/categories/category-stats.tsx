@@ -1,7 +1,6 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Category } from "@/lib/api";
 
 interface CategoryStatsProps {
   totalCategories: number;

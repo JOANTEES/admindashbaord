@@ -310,16 +310,6 @@ class ApiClient {
     });
   }
 
-  // Google OAuth endpoints
-  async initiateGoogleOAuth() {
-    // This should redirect to the backend OAuth endpoint with admin state
-    if (typeof window !== "undefined") {
-      window.location.href = `${this.baseURL.replace(
-        "/api",
-        ""
-      )}/api/auth/google?state=admin`;
-    }
-  }
 
   // Password reset endpoints
   async forgotPassword(email: string) {
@@ -343,10 +333,6 @@ class ApiClient {
     });
   }
 
-  // OAuth user info
-  async getOAuthUserInfo() {
-    return this.request("/auth/oauth/user");
-  }
 
   // Products endpoints (using existing backend)
   async getProducts() {
