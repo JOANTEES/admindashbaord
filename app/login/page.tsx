@@ -13,13 +13,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
   IconUser,
   IconLock,
   IconEye,
   IconEyeOff,
-  IconBrandGoogle,
 } from "@tabler/icons-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/auth-context";
@@ -31,13 +29,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const router = useRouter();
   const {
     login,
     isAuthenticated,
     isLoading: authLoading,
-    initiateGoogleOAuth,
   } = useAuth();
 
   // Redirect authenticated users to dashboard
@@ -63,15 +59,6 @@ export default function LoginPage() {
     setIsLoading(false);
   };
 
-  const handleGoogleLogin = async () => {
-    setIsGoogleLoading(true);
-    try {
-      initiateGoogleOAuth();
-    } catch {
-      toast.error("Failed to initiate Google login. Please try again.");
-      setIsGoogleLoading(false);
-    }
-  };
 
   // Show loading while checking authentication
   if (authLoading) {
@@ -120,30 +107,6 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Google OAuth Button */}
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full mb-4"
-            onClick={handleGoogleLogin}
-            disabled={isGoogleLoading}
-          >
-            <IconBrandGoogle className="h-4 w-4 mr-2" />
-            {isGoogleLoading
-              ? "Signing in with Google..."
-              : "Continue with Google"}
-          </Button>
-
-          <div className="relative mb-4">
-            <div className="absolute inset-0 flex items-center">
-              <Separator className="w-full" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">
-                Or continue with email
-              </span>
-            </div>
-          </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
@@ -204,15 +167,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Sign Up Link */}
-          <div className="mt-4 text-center text-sm">
-            <span className="text-muted-foreground">
-              Don&apos;t have an account?{" "}
-            </span>
-            <Link href="/register" className="text-primary hover:underline">
-              Sign up
-            </Link>
-          </div>
+       
         </CardContent>
       </Card>
     </div>

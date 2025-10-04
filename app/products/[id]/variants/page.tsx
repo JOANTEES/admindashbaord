@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -14,11 +14,11 @@ import {
 } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import Image from "next/image";
 import {
   Dialog,
   DialogContent,
@@ -82,7 +82,7 @@ export default function ProductVariantsPage() {
   });
 
   // Load variants
-  const fetchVariants = async () => {
+  const fetchVariants = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await apiClient.getProductVariants(productId);
@@ -100,13 +100,13 @@ export default function ProductVariantsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [productId]);
 
   useEffect(() => {
     if (productId) {
       fetchVariants();
     }
-  }, [productId]);
+  }, [productId, fetchVariants]);
 
   // Calculate total stock
   const totalStock = variants.reduce(
@@ -526,9 +526,11 @@ export default function ProductVariantsPage() {
 
                               {variant.imageUrl && (
                                 <div className="mb-3">
-                                  <img
+                                  <Image
                                     src={variant.imageUrl}
                                     alt={`${variant.size} ${variant.color}`}
+                                    width={200}
+                                    height={80}
                                     className="w-full h-20 object-cover rounded"
                                   />
                                 </div>

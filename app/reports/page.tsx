@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -173,11 +173,11 @@ export default function ReportsPage() {
   >([]);
 
   // Pagination and sorting
-  const [profitMarginsPage, setProfitMarginsPage] = useState(1);
+  const [profitMarginsPage] = useState(1);
   const [profitMarginsSort, setProfitMarginsSort] = useState("margin");
   const [profitMarginsOrder, setProfitMarginsOrder] = useState("desc");
 
-  const fetchOverallMetrics = async () => {
+  const fetchOverallMetrics = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -206,9 +206,9 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateRange]);
 
-  const fetchProfitMargins = async () => {
+  const fetchProfitMargins = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -230,9 +230,9 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [profitMarginsPage, profitMarginsSort, profitMarginsOrder]);
 
-  const fetchSalesTrends = async () => {
+  const fetchSalesTrends = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -253,9 +253,9 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateRange]);
 
-  const fetchInventoryStatus = async () => {
+  const fetchInventoryStatus = useCallback(async () => {
     try {
       setLoading(true);
       const response = await apiClient.get("/reports/inventory-status");
@@ -276,9 +276,9 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchCustomerInsights = async () => {
+  const fetchCustomerInsights = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -305,9 +305,9 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateRange]);
 
-  const refreshAllData = async () => {
+  const refreshAllData = useCallback(async () => {
     await Promise.all([
       fetchOverallMetrics(),
       fetchProfitMargins(),
@@ -315,11 +315,11 @@ export default function ReportsPage() {
       fetchInventoryStatus(),
       fetchCustomerInsights(),
     ]);
-  };
+  }, [fetchOverallMetrics, fetchProfitMargins, fetchSalesTrends, fetchInventoryStatus, fetchCustomerInsights]);
 
   useEffect(() => {
     refreshAllData();
-  }, [dateRange, profitMarginsPage, profitMarginsSort, profitMarginsOrder]);
+  }, [dateRange, profitMarginsPage, profitMarginsSort, profitMarginsOrder, refreshAllData]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-GH", {
@@ -338,11 +338,6 @@ export default function ReportsPage() {
     return "text-red-600";
   };
 
-  const getStockStatusColor = (quantity: number, threshold: number) => {
-    if (quantity === 0) return "text-red-600";
-    if (quantity <= threshold) return "text-orange-600";
-    return "text-green-600";
-  };
 
   return (
     <div className="space-y-6">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -45,10 +45,6 @@ export default function CategoriesPage() {
     null
   );
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
   // Helper function to flatten tree structure
   const flattenCategories = (categories: Category[]): Category[] => {
     const flattened: Category[] = [];
@@ -66,7 +62,7 @@ export default function CategoriesPage() {
     return flattened;
   };
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       setIsLoading(true);
       const [treeResponse, flatResponse] = await Promise.all([
@@ -111,7 +107,11 @@ export default function CategoriesPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
 
   const handleAddCategory = async (formData: CategoryFormData) => {
     try {

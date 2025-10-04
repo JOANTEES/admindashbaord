@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { IconLoader, IconPlus } from "@tabler/icons-react";
+import { IconLoader } from "@tabler/icons-react";
 import { Category } from "@/lib/api";
 
 interface CategoryFormData {

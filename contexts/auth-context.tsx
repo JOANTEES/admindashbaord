@@ -49,7 +49,6 @@ interface AuthContextType {
     error?: string;
     user?: { email: string; first_name: string };
   }>;
-  initiateGoogleOAuth: () => void;
   refreshAuthState: () => Promise<void>;
 }
 
@@ -278,9 +277,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const initiateGoogleOAuth = () => {
-    apiClient.initiateGoogleOAuth();
-  };
 
   return (
     <AuthContext.Provider
@@ -294,7 +290,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         forgotPassword,
         verifyResetToken,
         resetPassword,
-        initiateGoogleOAuth,
         refreshAuthState,
       }}
     >
