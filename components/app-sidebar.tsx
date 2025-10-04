@@ -122,25 +122,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <span className="text-base font-semibold">Admin Dashboard</span>
           </div>
         </div>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
-            >
-              <a href="/dashboard">
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                  <span className="text-background font-bold text-lg">A</span>
-                </div>
-                <span className="text-base font-semibold">Admin Dashboard</span>
-              </a>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavSecondary items={data.navMain} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>{/* User dropdown removed */}</SidebarFooter>
     </Sidebar>
