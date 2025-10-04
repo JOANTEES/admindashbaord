@@ -97,6 +97,9 @@ class ApiClient {
       const token = this.getToken();
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
         ...options.headers,
       };
 
@@ -310,7 +313,6 @@ class ApiClient {
     });
   }
 
-
   // Password reset endpoints
   async forgotPassword(email: string) {
     return this.request("/auth/forgot-password", {
@@ -332,7 +334,6 @@ class ApiClient {
       body: JSON.stringify({ token, password }),
     });
   }
-
 
   // Products endpoints (using existing backend)
   async getProducts() {
