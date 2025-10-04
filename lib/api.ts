@@ -483,6 +483,7 @@ class ApiClient {
     price: number;
     description: string;
     imageUrl?: string;
+    images?: string[]; // New: multiple images support
     stock: number;
     // New pricing fields per docs
     costPrice?: number;
@@ -523,6 +524,7 @@ class ApiClient {
       // stock/image
       stock_quantity: productData.stock,
       image_url: productData.imageUrl,
+      images: productData.images, // New: multiple images support
       // delivery flags
       requires_special_delivery: productData.requiresSpecialDelivery || false,
       delivery_eligible:
@@ -570,6 +572,7 @@ class ApiClient {
       // stock/image
       stock: number;
       imageUrl?: string;
+      images?: string[]; // New: multiple images support
       // delivery flags
       requiresSpecialDelivery?: boolean;
       deliveryEligible?: boolean;
@@ -596,6 +599,7 @@ class ApiClient {
       // stock/image
       stock_quantity: updates.stock,
       image_url: updates.imageUrl,
+      images: updates.images, // New: multiple images support
       // delivery flags
       requires_special_delivery: updates.requiresSpecialDelivery,
       delivery_eligible: updates.deliveryEligible,
@@ -1334,6 +1338,7 @@ export interface Product {
   legacyCategory?: string;
   sku?: string;
   imageUrl: string | null;
+  images?: string[]; // New: multiple images support
   is_active: boolean;
   requiresSpecialDelivery: boolean;
   deliveryEligible: boolean;

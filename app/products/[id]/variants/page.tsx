@@ -35,6 +35,8 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
 import { apiClient } from "@/lib/api";
 import type { ProductVariant, ProductVariantsResponse } from "@/lib/api";
+import { MediaUpload } from "@/components/media-upload";
+import { supabase } from "@/lib/supabase";
 
 interface VariantFormData {
   sku: string;
@@ -42,6 +44,16 @@ interface VariantFormData {
   color: string;
   stockQuantity: string;
   imageUrl: string;
+}
+
+interface VariantFormState {
+  formData: VariantFormData;
+  selectedFile: File | null;
+}
+
+interface EditVariantFormState {
+  editFormData: VariantFormData;
+  selectedFile: File | null;
 }
 
 export default function ProductVariantsPage() {
@@ -65,20 +77,26 @@ export default function ProductVariantsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [variantToDelete, setVariantToDelete] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState<VariantFormData>({
-    sku: "",
-    size: "",
-    color: "",
-    stockQuantity: "",
-    imageUrl: "",
+  const [formState, setFormState] = useState<VariantFormState>({
+    formData: {
+      sku: "",
+      size: "",
+      color: "",
+      stockQuantity: "",
+      imageUrl: "",
+    },
+    selectedFile: null,
   });
 
-  const [editFormData, setEditFormData] = useState<VariantFormData>({
-    sku: "",
-    size: "",
-    color: "",
-    stockQuantity: "",
-    imageUrl: "",
+  const [editFormState, setEditFormState] = useState<EditVariantFormState>({
+    editFormData: {
+      sku: "",
+      size: "",
+      color: "",
+      stockQuantity: "",
+      imageUrl: "",
+    },
+    selectedFile: null,
   });
 
   // Load variants
@@ -120,25 +138,56 @@ export default function ProductVariantsPage() {
     try {
       setIsCreating(true);
 
+      let imageUrl = formState.formData.imageUrl;
+
+      // Upload image if a new file is selected
+      if (formState.selectedFile) {
+        if (!supabase) {
+          toast.error("Image upload not available - Supabase not configured");
+          return;
+        }
+
+        const ext = formState.selectedFile.name.split(".").pop() || "jpg";
+        const path = `images/${crypto.randomUUID()}.${ext}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("products")
+          .upload(path, formState.selectedFile, {
+            contentType: formState.selectedFile.type,
+          });
+
+        if (uploadError) {
+          toast.error("Image upload failed");
+          return;
+        }
+
+        const { data } = supabase.storage.from("products").getPublicUrl(path);
+
+        imageUrl = data.publicUrl;
+      }
+
       const response = await apiClient.createVariant({
         product_id: parseInt(productId),
-        sku: formData.sku || undefined,
-        size: formData.size || undefined,
-        color: formData.color || undefined,
-        stock_quantity: parseInt(formData.stockQuantity),
-        image_url: formData.imageUrl || undefined,
+        sku: formState.formData.sku || undefined,
+        size: formState.formData.size || undefined,
+        color: formState.formData.color || undefined,
+        stock_quantity: parseInt(formState.formData.stockQuantity),
+        image_url: imageUrl || undefined,
       });
 
       const data = response.data as { success: boolean; message: string };
       if (data.success) {
         toast.success("Variant created successfully");
         setIsAddDialogOpen(false);
-        setFormData({
-          sku: "",
-          size: "",
-          color: "",
-          stockQuantity: "",
-          imageUrl: "",
+        setFormState({
+          formData: {
+            sku: "",
+            size: "",
+            color: "",
+            stockQuantity: "",
+            imageUrl: "",
+          },
+          selectedFile: null,
         });
         fetchVariants();
       } else {
@@ -155,12 +204,15 @@ export default function ProductVariantsPage() {
   // Edit variant
   const openEditDialog = (variant: ProductVariant) => {
     setEditingVariant(variant);
-    setEditFormData({
-      sku: variant.sku || "",
-      size: variant.size || "",
-      color: variant.color || "",
-      stockQuantity: variant.stockQuantity.toString(),
-      imageUrl: variant.imageUrl || "",
+    setEditFormState({
+      editFormData: {
+        sku: variant.sku || "",
+        size: variant.size || "",
+        color: variant.color || "",
+        stockQuantity: variant.stockQuantity.toString(),
+        imageUrl: variant.imageUrl || "",
+      },
+      selectedFile: null,
     });
     setIsEditDialogOpen(true);
   };
@@ -171,12 +223,40 @@ export default function ProductVariantsPage() {
     try {
       setIsUpdating(true);
 
+      let imageUrl = editFormState.editFormData.imageUrl;
+
+      // Upload image if a new file is selected
+      if (editFormState.selectedFile) {
+        if (!supabase) {
+          toast.error("Image upload not available - Supabase not configured");
+          return;
+        }
+
+        const ext = editFormState.selectedFile.name.split(".").pop() || "jpg";
+        const path = `images/${crypto.randomUUID()}.${ext}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("products")
+          .upload(path, editFormState.selectedFile, {
+            contentType: editFormState.selectedFile.type,
+          });
+
+        if (uploadError) {
+          toast.error("Image upload failed");
+          return;
+        }
+
+        const { data } = supabase.storage.from("products").getPublicUrl(path);
+
+        imageUrl = data.publicUrl;
+      }
+
       const response = await apiClient.updateVariant(editingVariant.id, {
-        sku: editFormData.sku || undefined,
-        size: editFormData.size || undefined,
-        color: editFormData.color || undefined,
-        stock_quantity: parseInt(editFormData.stockQuantity),
-        image_url: editFormData.imageUrl || undefined,
+        sku: editFormState.editFormData.sku || undefined,
+        size: editFormState.editFormData.size || undefined,
+        color: editFormState.editFormData.color || undefined,
+        stock_quantity: parseInt(editFormState.editFormData.stockQuantity),
+        image_url: imageUrl || undefined,
       });
 
       const data = response.data as { success: boolean; message: string };
@@ -321,11 +401,14 @@ export default function ProductVariantsPage() {
                             <Label htmlFor="sku">SKU (Optional)</Label>
                             <Input
                               id="sku"
-                              value={formData.sku}
+                              value={formState.formData.sku}
                               onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  sku: e.target.value,
+                                setFormState({
+                                  ...formState,
+                                  formData: {
+                                    ...formState.formData,
+                                    sku: e.target.value,
+                                  },
                                 })
                               }
                               placeholder="Enter SKU"
@@ -336,11 +419,14 @@ export default function ProductVariantsPage() {
                               <Label htmlFor="size">Size (Optional)</Label>
                               <Input
                                 id="size"
-                                value={formData.size}
+                                value={formState.formData.size}
                                 onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    size: e.target.value,
+                                  setFormState({
+                                    ...formState,
+                                    formData: {
+                                      ...formState.formData,
+                                      size: e.target.value,
+                                    },
                                   })
                                 }
                                 placeholder="e.g., M, L, XL"
@@ -350,11 +436,14 @@ export default function ProductVariantsPage() {
                               <Label htmlFor="color">Color (Optional)</Label>
                               <Input
                                 id="color"
-                                value={formData.color}
+                                value={formState.formData.color}
                                 onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    color: e.target.value,
+                                  setFormState({
+                                    ...formState,
+                                    formData: {
+                                      ...formState.formData,
+                                      color: e.target.value,
+                                    },
                                   })
                                 }
                                 placeholder="e.g., Red, Blue"
@@ -369,11 +458,14 @@ export default function ProductVariantsPage() {
                               id="stockQuantity"
                               type="number"
                               min="0"
-                              value={formData.stockQuantity}
+                              value={formState.formData.stockQuantity}
                               onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  stockQuantity: e.target.value,
+                                setFormState({
+                                  ...formState,
+                                  formData: {
+                                    ...formState.formData,
+                                    stockQuantity: e.target.value,
+                                  },
                                 })
                               }
                               placeholder="Enter stock quantity"
@@ -382,18 +474,17 @@ export default function ProductVariantsPage() {
                           </div>
                           <div>
                             <Label htmlFor="imageUrl">
-                              Image URL (Optional)
+                              Variant Image (Optional)
                             </Label>
-                            <Input
-                              id="imageUrl"
-                              value={formData.imageUrl}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  imageUrl: e.target.value,
+                            <MediaUpload
+                              onFileSelect={(file) =>
+                                setFormState({
+                                  ...formState,
+                                  selectedFile: file,
                                 })
                               }
-                              placeholder="Enter image URL"
+                              currentImageUrl={formState.formData.imageUrl}
+                              selectedFile={formState.selectedFile}
                             />
                           </div>
                           <div className="flex justify-end gap-2">
@@ -405,7 +496,9 @@ export default function ProductVariantsPage() {
                             </Button>
                             <Button
                               onClick={handleAddVariant}
-                              disabled={isCreating || !formData.stockQuantity}
+                              disabled={
+                                isCreating || !formState.formData.stockQuantity
+                              }
                             >
                               {isCreating ? (
                                 <IconLoader className="h-4 w-4 mr-2 animate-spin" />
@@ -581,11 +674,14 @@ export default function ProductVariantsPage() {
                           <Label htmlFor="edit_sku">SKU (Optional)</Label>
                           <Input
                             id="edit_sku"
-                            value={editFormData.sku}
+                            value={editFormState.editFormData.sku}
                             onChange={(e) =>
-                              setEditFormData({
-                                ...editFormData,
-                                sku: e.target.value,
+                              setEditFormState({
+                                ...editFormState,
+                                editFormData: {
+                                  ...editFormState.editFormData,
+                                  sku: e.target.value,
+                                },
                               })
                             }
                             placeholder="Enter SKU"
@@ -596,11 +692,14 @@ export default function ProductVariantsPage() {
                             <Label htmlFor="edit_size">Size (Optional)</Label>
                             <Input
                               id="edit_size"
-                              value={editFormData.size}
+                              value={editFormState.editFormData.size}
                               onChange={(e) =>
-                                setEditFormData({
-                                  ...editFormData,
-                                  size: e.target.value,
+                                setEditFormState({
+                                  ...editFormState,
+                                  editFormData: {
+                                    ...editFormState.editFormData,
+                                    size: e.target.value,
+                                  },
                                 })
                               }
                               placeholder="e.g., M, L, XL"
@@ -610,11 +709,14 @@ export default function ProductVariantsPage() {
                             <Label htmlFor="edit_color">Color (Optional)</Label>
                             <Input
                               id="edit_color"
-                              value={editFormData.color}
+                              value={editFormState.editFormData.color}
                               onChange={(e) =>
-                                setEditFormData({
-                                  ...editFormData,
-                                  color: e.target.value,
+                                setEditFormState({
+                                  ...editFormState,
+                                  editFormData: {
+                                    ...editFormState.editFormData,
+                                    color: e.target.value,
+                                  },
                                 })
                               }
                               placeholder="e.g., Red, Blue"
@@ -629,11 +731,14 @@ export default function ProductVariantsPage() {
                             id="edit_stockQuantity"
                             type="number"
                             min="0"
-                            value={editFormData.stockQuantity}
+                            value={editFormState.editFormData.stockQuantity}
                             onChange={(e) =>
-                              setEditFormData({
-                                ...editFormData,
-                                stockQuantity: e.target.value,
+                              setEditFormState({
+                                ...editFormState,
+                                editFormData: {
+                                  ...editFormState.editFormData,
+                                  stockQuantity: e.target.value,
+                                },
                               })
                             }
                             placeholder="Enter stock quantity"
@@ -642,18 +747,19 @@ export default function ProductVariantsPage() {
                         </div>
                         <div>
                           <Label htmlFor="edit_imageUrl">
-                            Image URL (Optional)
+                            Variant Image (Optional)
                           </Label>
-                          <Input
-                            id="edit_imageUrl"
-                            value={editFormData.imageUrl}
-                            onChange={(e) =>
-                              setEditFormData({
-                                ...editFormData,
-                                imageUrl: e.target.value,
+                          <MediaUpload
+                            onFileSelect={(file) =>
+                              setEditFormState({
+                                ...editFormState,
+                                selectedFile: file,
                               })
                             }
-                            placeholder="Enter image URL"
+                            currentImageUrl={
+                              editFormState.editFormData.imageUrl
+                            }
+                            selectedFile={editFormState.selectedFile}
                           />
                         </div>
                         <div className="flex justify-end gap-2">
@@ -665,7 +771,10 @@ export default function ProductVariantsPage() {
                           </Button>
                           <Button
                             onClick={handleUpdateVariant}
-                            disabled={isUpdating || !editFormData.stockQuantity}
+                            disabled={
+                              isUpdating ||
+                              !editFormState.editFormData.stockQuantity
+                            }
                           >
                             {isUpdating ? (
                               <IconLoader className="h-4 w-4 mr-2 animate-spin" />
