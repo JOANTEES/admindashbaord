@@ -40,6 +40,7 @@ import {
   IconTrash,
   IconEdit,
   IconLoader,
+  IconEye,
 } from "@tabler/icons-react";
 import {
   apiClient,
@@ -52,6 +53,8 @@ import { toast } from "sonner";
 import { ProtectedRoute } from "@/components/protected-route";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
+import { MultiImageUpload } from "@/components/multi-image-upload";
+import Link from "next/link";
 
 export default function ClothesPage() {
   const router = useRouter();
@@ -82,7 +85,8 @@ export default function ClothesPage() {
     deliveryEligible: true,
     pickupEligible: true,
   });
-  const [formFile, setFormFile] = useState<File | null>(null);
+  const [formFiles, setFormFiles] = useState<File[]>([]);
+  const [formImageUrls, setFormImageUrls] = useState<string[]>([]);
   const [isAddingClothes, setIsAddingClothes] = useState(false);
   const [isUpdatingClothes, setIsUpdatingClothes] = useState(false);
   const [isDeletingClothes, setIsDeletingClothes] = useState<number | null>(
@@ -108,7 +112,8 @@ export default function ClothesPage() {
     deliveryEligible: true,
     pickupEligible: true,
   });
-  const [editFormFile, setEditFormFile] = useState<File | null>(null);
+  const [editFormFiles, setEditFormFiles] = useState<File[]>([]);
+  const [editFormImageUrls, setEditFormImageUrls] = useState<string[]>([]);
 
   useEffect(() => {
     fetchClothes();
@@ -268,25 +273,41 @@ export default function ClothesPage() {
   const handleAddClothes = async () => {
     try {
       setIsAddingClothes(true);
-      let imageUrl: string | undefined = formData.imageUrl || undefined;
-      if (!imageUrl && formFile) {
-        // Upload to Supabase Storage on submit
+      // Upload multiple images to Supabase Storage
+      const uploadedImageUrls: string[] = [];
+
+      if (formFiles.length > 0) {
         if (!supabase) {
           toast.error("Image upload not available - Supabase not configured");
           return;
         }
-        const ext = formFile.name.split(".").pop() || "jpg";
-        const path = `images/${crypto.randomUUID()}.${ext}`;
-        const { error: uploadError } = await supabase.storage
-          .from("products")
-          .upload(path, formFile, { contentType: formFile.type });
-        if (uploadError) {
-          toast.error("Image upload failed");
-          return;
+
+        for (const file of formFiles) {
+          const ext = file.name.split(".").pop() || "jpg";
+          const path = `images/${crypto.randomUUID()}.${ext}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from("products")
+            .upload(path, file, { contentType: file.type });
+
+          if (uploadError) {
+            toast.error(`Failed to upload ${file.name}`);
+            return;
+          }
+
+          const { data } = supabase.storage.from("products").getPublicUrl(path);
+          uploadedImageUrls.push(data.publicUrl);
         }
-        const { data } = supabase.storage.from("products").getPublicUrl(path);
-        imageUrl = data.publicUrl;
       }
+
+      // Combine uploaded URLs with manually entered URLs
+      const allImageUrls = [...uploadedImageUrls, ...formImageUrls];
+
+      // Use the first image as the main image_url for backward compatibility
+      const imageUrl =
+        allImageUrls.length > 0
+          ? allImageUrls[0]
+          : formData.imageUrl || undefined;
       // If user pasted a URL, use it; otherwise, if a File was in imageUrl (not in current form), skip.
       // For now we keep URL-only to minimize UI churn. We can add <input type="file"> next.
 
@@ -312,6 +333,7 @@ export default function ClothesPage() {
         color: formData.color,
         stock: parseInt(formData.stock) || 0,
         imageUrl,
+        images: allImageUrls, // Send all images to backend
         requiresSpecialDelivery: formData.requiresSpecialDelivery,
         deliveryEligible: formData.deliveryEligible,
         pickupEligible: formData.pickupEligible,
@@ -348,7 +370,8 @@ export default function ClothesPage() {
           deliveryEligible: true,
           pickupEligible: true,
         });
-        setFormFile(null);
+        setFormFiles([]);
+        setFormImageUrls([]);
         fetchClothes(); // Refresh the list
       }
     } catch (error) {
@@ -410,6 +433,11 @@ export default function ClothesPage() {
       pickupEligible:
         item.pickupEligible !== undefined ? item.pickupEligible : true,
     });
+
+    // Initialize image arrays with existing image
+    setEditFormImageUrls(item.imageUrl ? [item.imageUrl] : []);
+    setEditFormFiles([]);
+
     setIsEditDialogOpen(true);
   };
 
@@ -417,24 +445,41 @@ export default function ClothesPage() {
     if (!editingProduct) return;
     try {
       setIsUpdatingClothes(true);
-      let imageUrl: string | undefined = editFormData.imageUrl || undefined;
-      if (editFormFile) {
+      // Upload multiple images to Supabase Storage
+      const uploadedImageUrls: string[] = [];
+
+      if (editFormFiles.length > 0) {
         if (!supabase) {
           toast.error("Image upload not available - Supabase not configured");
           return;
         }
-        const ext = editFormFile.name.split(".").pop() || "jpg";
-        const path = `images/${crypto.randomUUID()}.${ext}`;
-        const { error: uploadError } = await supabase.storage
-          .from("products")
-          .upload(path, editFormFile, { contentType: editFormFile.type });
-        if (uploadError) {
-          toast.error("Image upload failed");
-          return;
+
+        for (const file of editFormFiles) {
+          const ext = file.name.split(".").pop() || "jpg";
+          const path = `images/${crypto.randomUUID()}.${ext}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from("products")
+            .upload(path, file, { contentType: file.type });
+
+          if (uploadError) {
+            toast.error(`Failed to upload ${file.name}`);
+            return;
+          }
+
+          const { data } = supabase.storage.from("products").getPublicUrl(path);
+          uploadedImageUrls.push(data.publicUrl);
         }
-        const { data } = supabase.storage.from("products").getPublicUrl(path);
-        imageUrl = data.publicUrl;
       }
+
+      // Combine uploaded URLs with manually entered URLs
+      const allImageUrls = [...uploadedImageUrls, ...editFormImageUrls];
+
+      // Use the first image as the main image_url for backward compatibility
+      const imageUrl =
+        allImageUrls.length > 0
+          ? allImageUrls[0]
+          : editFormData.imageUrl || undefined;
       const resp = await apiClient.updateProduct(editingProduct.id, {
         title: editFormData.title,
         price: parseFloat(editFormData.price),
@@ -456,6 +501,7 @@ export default function ClothesPage() {
         color: editFormData.color,
         stock: parseInt(editFormData.stock) || 0,
         imageUrl,
+        images: allImageUrls, // Send all images to backend
         requiresSpecialDelivery: editFormData.requiresSpecialDelivery,
         deliveryEligible: editFormData.deliveryEligible,
         pickupEligible: editFormData.pickupEligible,
@@ -472,7 +518,8 @@ export default function ClothesPage() {
       toast.success("Clothes updated successfully");
       setIsEditDialogOpen(false);
       setEditingProduct(null);
-      setEditFormFile(null);
+      setEditFormFiles([]);
+      setEditFormImageUrls([]);
       fetchClothes();
     } catch (error) {
       console.error("Error updating clothes:", error);
@@ -844,35 +891,13 @@ export default function ClothesPage() {
                               Can Be Picked Up
                             </Label>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <Label htmlFor="imageUrl">
-                                Image URL (Optional)
-                              </Label>
-                              <Input
-                                id="imageUrl"
-                                value={formData.imageUrl}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    imageUrl: e.target.value,
-                                  })
-                                }
-                                placeholder="Enter image URL"
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="imageFile">Or Select Image</Label>
-                              <Input
-                                id="imageFile"
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) =>
-                                  setFormFile(e.target.files?.[0] || null)
-                                }
-                              />
-                            </div>
-                          </div>
+                          <MultiImageUpload
+                            onImagesChange={setFormFiles}
+                            onUrlsChange={setFormImageUrls}
+                            currentImages={formImageUrls}
+                            selectedFiles={formFiles}
+                            maxImages={5}
+                          />
                         </div>
                         <DialogFooter>
                           <Button
@@ -1178,37 +1203,13 @@ export default function ClothesPage() {
                               Can Be Picked Up
                             </Label>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <Label htmlFor="edit_imageUrl">
-                                Image URL (Optional)
-                              </Label>
-                              <Input
-                                id="edit_imageUrl"
-                                value={editFormData.imageUrl}
-                                onChange={(e) =>
-                                  setEditFormData({
-                                    ...editFormData,
-                                    imageUrl: e.target.value,
-                                  })
-                                }
-                                placeholder="Enter image URL"
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="edit_imageFile">
-                                Or Select Image
-                              </Label>
-                              <Input
-                                id="edit_imageFile"
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) =>
-                                  setEditFormFile(e.target.files?.[0] || null)
-                                }
-                              />
-                            </div>
-                          </div>
+                          <MultiImageUpload
+                            onImagesChange={setEditFormFiles}
+                            onUrlsChange={setEditFormImageUrls}
+                            currentImages={editFormImageUrls}
+                            selectedFiles={editFormFiles}
+                            maxImages={5}
+                          />
                         </div>
                         <DialogFooter>
                           <Button
@@ -1340,25 +1341,32 @@ export default function ClothesPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {filteredAndSortedClothes.map((item) => (
                       <Card key={item.id} className="overflow-hidden">
-                        <div className="aspect-square relative bg-muted">
-                          {item.imageUrl ? (
-                            <Image
-                              src={item.imageUrl}
-                              alt={item.name}
-                              fill
-                              className="object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                              <IconEdit className="h-12 w-12" />
-                            </div>
-                          )}
-                        </div>
+                        <Link href={`/products/${item.id}`} className="block">
+                          <div className="aspect-square relative bg-muted">
+                            {item.imageUrl ? (
+                              <Image
+                                src={item.imageUrl}
+                                alt={item.name}
+                                fill
+                                className="object-cover hover:scale-105 transition-transform duration-200"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                <IconEdit className="h-12 w-12" />
+                              </div>
+                            )}
+                          </div>
+                        </Link>
                         <CardContent className="p-4">
                           <div className="flex justify-between items-start mb-2">
-                            <h3 className="font-semibold text-sm line-clamp-2">
-                              {item.name}
-                            </h3>
+                            <Link
+                              href={`/products/${item.id}`}
+                              className="hover:text-primary transition-colors"
+                            >
+                              <h3 className="font-semibold text-sm line-clamp-2">
+                                {item.name}
+                              </h3>
+                            </Link>
                             <div className="text-right">
                               <span className="text-lg font-bold text-primary">
                                 ₵{item.effectivePrice || item.price}
@@ -1418,6 +1426,16 @@ export default function ClothesPage() {
                           </div>
                           <div className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
+                              <Link href={`/products/${item.id}`}>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs"
+                                >
+                                  <IconEye className="h-3 w-3 mr-1" />
+                                  View Details
+                                </Button>
+                              </Link>
                               <Button
                                 variant="outline"
                                 size="sm"
