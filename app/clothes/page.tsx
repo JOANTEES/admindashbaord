@@ -435,8 +435,15 @@ export default function ClothesPage() {
         item.pickupEligible !== undefined ? item.pickupEligible : true,
     });
 
-    // Initialize image arrays with existing image
-    setEditFormImageUrls(item.imageUrl ? [item.imageUrl] : []);
+    // Initialize image arrays with existing images from the product
+    // Use the images array if available, otherwise fall back to imageUrl
+    const existingImages =
+      item.images && item.images.length > 0
+        ? item.images
+        : item.imageUrl
+        ? [item.imageUrl]
+        : [];
+    setEditFormImageUrls(existingImages);
     setEditFormFiles([]);
 
     setIsEditDialogOpen(true);
