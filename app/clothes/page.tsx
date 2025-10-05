@@ -636,7 +636,7 @@ export default function ClothesPage() {
                           Add Clothes
                         </Button>
                       </DialogTrigger>
-                      <DialogContent>
+                      <DialogContent className="max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                           <DialogTitle>Add New Clothes</DialogTitle>
                           <DialogDescription>
@@ -935,7 +935,7 @@ export default function ClothesPage() {
                       open={isEditDialogOpen}
                       onOpenChange={setIsEditDialogOpen}
                     >
-                      <DialogContent>
+                      <DialogContent className="max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                           <DialogTitle>Edit Clothes</DialogTitle>
                           <DialogDescription>
