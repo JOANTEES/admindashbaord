@@ -194,12 +194,18 @@ export default function ReportsPage() {
 
       console.log("[Reports] fetchOverallMetrics response", response);
       if (response.data && !response.error) {
-        const payload = (response.data as any).data ?? response.data;
+        const payload =
+          (response.data as { data?: unknown }).data ?? response.data;
         console.log("[Reports] parsed overall metrics", payload);
-        setOverallMetrics(payload.summary ?? null);
-        setTopProducts(payload.topProducts ?? []);
-        setSalesByDelivery(payload.salesByDeliveryMethod ?? []);
-        setSalesByPayment(payload.salesByPaymentMethod ?? []);
+        const data = payload as Record<string, unknown>;
+        setOverallMetrics((data.summary as typeof overallMetrics) ?? null);
+        setTopProducts((data.topProducts as typeof topProducts) ?? []);
+        setSalesByDelivery(
+          (data.salesByDeliveryMethod as typeof salesByDelivery) ?? []
+        );
+        setSalesByPayment(
+          (data.salesByPaymentMethod as typeof salesByPayment) ?? []
+        );
       }
     } catch (error) {
       console.error("Error fetching overall metrics:", error);
@@ -229,9 +235,11 @@ export default function ReportsPage() {
 
       console.log("[Reports] fetchProfitMargins response", response);
       if (response.data && !response.error) {
-        const payload = (response.data as any).data ?? response.data;
+        const payload =
+          (response.data as { data?: unknown }).data ?? response.data;
         console.log("[Reports] parsed profit margins", payload);
-        setProfitMargins(payload.products ?? []);
+        const data = payload as Record<string, unknown>;
+        setProfitMargins((data.products as typeof profitMargins) ?? []);
       }
     } catch (error) {
       console.error("Error fetching profit margins:", error);
@@ -256,9 +264,11 @@ export default function ReportsPage() {
 
       console.log("[Reports] fetchSalesTrends response", response);
       if (response.data && !response.error) {
-        const payload = (response.data as any).data ?? response.data;
+        const payload =
+          (response.data as { data?: unknown }).data ?? response.data;
         console.log("[Reports] parsed sales trends", payload);
-        setSalesTrends(payload.trends ?? []);
+        const data = payload as Record<string, unknown>;
+        setSalesTrends((data.trends as typeof salesTrends) ?? []);
       }
     } catch (error) {
       console.error("Error fetching sales trends:", error);
@@ -277,11 +287,17 @@ export default function ReportsPage() {
 
       console.log("[Reports] fetchInventoryStatus response", response);
       if (response.data && !response.error) {
-        const payload = (response.data as any).data ?? response.data;
+        const payload =
+          (response.data as { data?: unknown }).data ?? response.data;
         console.log("[Reports] parsed inventory status", payload);
-        setInventorySummary(payload.summary ?? null);
-        setLowStockProducts(payload.lowStockProducts ?? []);
-        setOutOfStockProducts(payload.outOfStockProducts ?? []);
+        const data = payload as Record<string, unknown>;
+        setInventorySummary((data.summary as typeof inventorySummary) ?? null);
+        setLowStockProducts(
+          (data.lowStockProducts as typeof lowStockProducts) ?? []
+        );
+        setOutOfStockProducts(
+          (data.outOfStockProducts as typeof outOfStockProducts) ?? []
+        );
       }
     } catch (error) {
       console.error("Error fetching inventory status:", error);
@@ -306,11 +322,15 @@ export default function ReportsPage() {
 
       console.log("[Reports] fetchCustomerInsights response", response);
       if (response.data && !response.error) {
-        const payload = (response.data as any).data ?? response.data;
+        const payload =
+          (response.data as { data?: unknown }).data ?? response.data;
         console.log("[Reports] parsed customer insights", payload);
-        setCustomerSummary(payload.summary ?? null);
-        setTopCustomers(payload.topCustomers ?? []);
-        setAcquisitionTrends(payload.acquisitionTrends ?? []);
+        const data = payload as Record<string, unknown>;
+        setCustomerSummary((data.summary as typeof customerSummary) ?? null);
+        setTopCustomers((data.topCustomers as typeof topCustomers) ?? []);
+        setAcquisitionTrends(
+          (data.acquisitionTrends as typeof acquisitionTrends) ?? []
+        );
       }
     } catch (error) {
       console.error("Error fetching customer insights:", error);

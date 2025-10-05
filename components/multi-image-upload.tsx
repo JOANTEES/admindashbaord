@@ -107,7 +107,7 @@ export function MultiImageUpload({
     setDraggedUrlIndex(index);
   };
 
-  const handleUrlDragOver = (e: React.DragEvent, index: number) => {
+  const handleUrlDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
 
@@ -128,7 +128,7 @@ export function MultiImageUpload({
     setDraggedFileIndex(index);
   };
 
-  const handleFileDragOver = (e: React.DragEvent, index: number) => {
+  const handleFileDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
 
@@ -172,7 +172,7 @@ export function MultiImageUpload({
               className="relative group cursor-move"
               draggable
               onDragStart={() => handleUrlDragStart(index)}
-              onDragOver={(e) => handleUrlDragOver(e, index)}
+              onDragOver={handleUrlDragOver}
               onDrop={(e) => handleUrlDrop(e, index)}
             >
               <div className="relative">
@@ -208,7 +208,7 @@ export function MultiImageUpload({
               className="relative group cursor-move"
               draggable
               onDragStart={() => handleFileDragStart(index)}
-              onDragOver={(e) => handleFileDragOver(e, index)}
+              onDragOver={handleFileDragOver}
               onDrop={(e) => handleFileDrop(e, index)}
             >
               <div className="relative">

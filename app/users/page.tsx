@@ -41,7 +41,6 @@ import {
   IconEye,
   IconEdit,
   IconTrash,
-  IconShield,
   IconLoader,
 } from "@tabler/icons-react";
 import { ProtectedRoute } from "@/components/protected-route";
@@ -218,19 +217,23 @@ export default function UsersPage() {
     (async () => {
       try {
         const res = await apiClient.get(`/reports/customer-insights`);
-        const payload = (res.data as any).data ?? res.data;
-        const list = (payload?.topCustomers as any[]) || [];
+        const payload = (res.data as { data?: unknown }).data ?? res.data;
+        const data = payload as Record<string, unknown>;
+        const list = Array.isArray(data.topCustomers) ? data.topCustomers : [];
         setReportsTopCustomers(
-          list.map((c) => ({
-            id: String(c.id),
-            name: c.name,
-            email: c.email,
-            totalOrders: c.totalOrders ?? 0,
-            totalSpent: c.totalSpent ?? 0,
-            lastOrderDate: c.lastOrderDate,
-          }))
+          list.map((c: unknown) => {
+            const customer = c as Record<string, unknown>;
+            return {
+              id: String(customer.id ?? ""),
+              name: String(customer.name ?? ""),
+              email: String(customer.email ?? ""),
+              totalOrders: Number(customer.totalOrders ?? 0),
+              totalSpent: Number(customer.totalSpent ?? 0),
+              lastOrderDate: customer.lastOrderDate as string | undefined,
+            };
+          })
         );
-      } catch (e) {
+      } catch {
         // non-fatal: keep table hidden if endpoint not available
         setReportsTopCustomers([]);
       }
@@ -239,7 +242,6 @@ export default function UsersPage() {
 
   const roles = ["customer"]; // Only customers visible here
   const statuses = ["active", "inactive", "suspended"];
-  const departments: string[] = ["General"]; // Keep minimal for customers
 
   const getRolePermissions = (role: string) => {
     switch (role) {
@@ -445,8 +447,6 @@ export default function UsersPage() {
 
   const totalUsers = users.length;
   const activeUsers = users.filter((u) => u.status === "active").length;
-  const adminUsers = 0;
-  const staffUsers = 0;
 
   if (isLoading) {
     return (

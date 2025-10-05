@@ -40,24 +40,24 @@ export default function ProductDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
-  const fetchProduct = async () => {
-    try {
-      setIsLoading(true);
-      const response = await apiClient.getProductById(productId);
-
-      if (response.data) {
-        const data = response.data as { product: Product };
-        setProduct(data.product);
-      }
-    } catch (error) {
-      console.error("Error fetching product:", error);
-      toast.error("Failed to load product");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        setIsLoading(true);
+        const response = await apiClient.getProductById(productId);
+
+        if (response.data) {
+          const data = response.data as { product: Product };
+          setProduct(data.product);
+        }
+      } catch (error) {
+        console.error("Error fetching product:", error);
+        toast.error("Failed to load product");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     if (productId) {
       fetchProduct();
     }

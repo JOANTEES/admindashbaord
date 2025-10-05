@@ -9,7 +9,6 @@ import {
   IconSettings,
   IconUsers,
   IconCreditCard,
-  IconUsersGroup,
   IconMapPin,
   IconPackage,
   IconBuildingStore,
@@ -19,15 +18,11 @@ import {
 } from "@tabler/icons-react";
 
 import { NavMain } from "@/components/nav-main";
-import { NavSecondary } from "@/components/nav-secondary";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import Image from "next/image";
 
