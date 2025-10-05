@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -34,6 +34,7 @@ import {
   IconTag,
 } from "@tabler/icons-react";
 import { apiClient, Brand, BrandsResponse } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { ProtectedRoute } from "@/components/protected-route";
 import Image from "next/image";
@@ -54,6 +55,8 @@ export default function BrandsPage() {
   const [isAddingBrand, setIsAddingBrand] = useState(false);
   const [isUpdatingBrand, setIsUpdatingBrand] = useState(false);
   const [isDeletingBrand, setIsDeletingBrand] = useState<string | null>(null);
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
 
   const [editFormData, setEditFormData] = useState({
     name: "",
@@ -89,10 +92,32 @@ export default function BrandsPage() {
   const handleAddBrand = async () => {
     try {
       setIsAddingBrand(true);
+      let logoUrl: string | undefined = formData.logoUrl || undefined;
+      // Upload selected logo file if present
+      if (logoFile) {
+        if (!supabase) {
+          toast.error("Image upload not available - Supabase not configured");
+          return;
+        }
+        const ext = logoFile.name.split(".").pop() || "png";
+        const path = `brands/${crypto.randomUUID()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("products")
+          .upload(path, logoFile, { upsert: false });
+        if (uploadError) {
+          toast.error("Failed to upload brand logo");
+          return;
+        }
+        const { data: publicUrlData } = supabase.storage
+          .from("products")
+          .getPublicUrl(path);
+        logoUrl = publicUrlData.publicUrl;
+      }
+
       const response = await apiClient.createBrand({
         name: formData.name,
         description: formData.description || undefined,
-        logo_url: formData.logoUrl || undefined,
+        logo_url: logoUrl,
       });
 
       const possibleError = (response as unknown as { error?: string }).error;
@@ -153,6 +178,7 @@ export default function BrandsPage() {
       description: brand.description || "",
       logoUrl: brand.logoUrl || "",
     });
+    setLogoFile(null);
     setIsEditDialogOpen(true);
   };
 
@@ -160,10 +186,31 @@ export default function BrandsPage() {
     if (!editingBrand) return;
     try {
       setIsUpdatingBrand(true);
+      let logoUrl: string | undefined = editFormData.logoUrl || undefined;
+      if (logoFile) {
+        if (!supabase) {
+          toast.error("Image upload not available - Supabase not configured");
+          return;
+        }
+        const ext = logoFile.name.split(".").pop() || "png";
+        const path = `brands/${crypto.randomUUID()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("products")
+          .upload(path, logoFile, { upsert: false });
+        if (uploadError) {
+          toast.error("Failed to upload brand logo");
+          return;
+        }
+        const { data: publicUrlData } = supabase.storage
+          .from("products")
+          .getPublicUrl(path);
+        logoUrl = publicUrlData.publicUrl;
+      }
+
       const resp = await apiClient.updateBrand(editingBrand.id, {
         name: editFormData.name,
         description: editFormData.description || undefined,
-        logo_url: editFormData.logoUrl || undefined,
+        logo_url: logoUrl,
       });
       const possibleError = (resp as unknown as { error?: string }).error;
       if (possibleError) {
@@ -278,7 +325,7 @@ export default function BrandsPage() {
                           Add Brand
                         </Button>
                       </DialogTrigger>
-                      <DialogContent>
+                      <DialogContent className="max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                           <DialogTitle>Add New Brand</DialogTitle>
                           <DialogDescription>
@@ -315,8 +362,22 @@ export default function BrandsPage() {
                               placeholder="Enter brand description"
                             />
                           </div>
-                          <div>
-                            <Label htmlFor="logoUrl">Logo URL</Label>
+                          <div className="space-y-2">
+                            <Label htmlFor="brandLogo">Brand Logo</Label>
+                            <div className="flex items-center gap-3">
+                              <Input
+                                id="brandLogo"
+                                type="file"
+                                accept="image/*"
+                                ref={logoFileInputRef}
+                                onChange={(e) =>
+                                  setLogoFile(e.target.files?.[0] || null)
+                                }
+                              />
+                              <span className="text-xs text-muted-foreground">
+                                Optional: You can still paste a URL below
+                              </span>
+                            </div>
                             <Input
                               id="logoUrl"
                               value={formData.logoUrl}
@@ -326,8 +387,23 @@ export default function BrandsPage() {
                                   logoUrl: e.target.value,
                                 })
                               }
-                              placeholder="Enter logo URL"
+                              placeholder="Or paste logo URL"
                             />
+                            {(logoFile || formData.logoUrl) && (
+                              <div className="mt-2">
+                                <Image
+                                  src={
+                                    logoFile
+                                      ? URL.createObjectURL(logoFile)
+                                      : formData.logoUrl
+                                  }
+                                  alt="Brand logo preview"
+                                  width={64}
+                                  height={64}
+                                  className="h-16 w-16 object-cover rounded border"
+                                />
+                              </div>
+                            )}
                           </div>
                         </div>
                         <DialogFooter>
@@ -358,7 +434,7 @@ export default function BrandsPage() {
                       open={isEditDialogOpen}
                       onOpenChange={setIsEditDialogOpen}
                     >
-                      <DialogContent>
+                      <DialogContent className="max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                           <DialogTitle>Edit Brand</DialogTitle>
                           <DialogDescription>
@@ -397,8 +473,22 @@ export default function BrandsPage() {
                               placeholder="Enter brand description"
                             />
                           </div>
-                          <div>
-                            <Label htmlFor="edit_logoUrl">Logo URL</Label>
+                          <div className="space-y-2">
+                            <Label htmlFor="edit_brandLogo">Brand Logo</Label>
+                            <div className="flex items-center gap-3">
+                              <Input
+                                id="edit_brandLogo"
+                                type="file"
+                                accept="image/*"
+                                ref={logoFileInputRef}
+                                onChange={(e) =>
+                                  setLogoFile(e.target.files?.[0] || null)
+                                }
+                              />
+                              <span className="text-xs text-muted-foreground">
+                                Optional: You can still paste a URL below
+                              </span>
+                            </div>
                             <Input
                               id="edit_logoUrl"
                               value={editFormData.logoUrl}
@@ -408,8 +498,23 @@ export default function BrandsPage() {
                                   logoUrl: e.target.value,
                                 })
                               }
-                              placeholder="Enter logo URL"
+                              placeholder="Or paste logo URL"
                             />
+                            {(logoFile || editFormData.logoUrl) && (
+                              <div className="mt-2">
+                                <Image
+                                  src={
+                                    logoFile
+                                      ? URL.createObjectURL(logoFile)
+                                      : editFormData.logoUrl
+                                  }
+                                  alt="Brand logo preview"
+                                  width={64}
+                                  height={64}
+                                  className="h-16 w-16 object-cover rounded border"
+                                />
+                              </div>
+                            )}
                           </div>
                         </div>
                         <DialogFooter>

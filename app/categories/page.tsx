@@ -22,7 +22,6 @@ interface CategoryFormData {
   name: string;
   description: string;
   parentId: string;
-  imageUrl: string;
   sortOrder: number;
 }
 
@@ -123,7 +122,6 @@ export default function CategoriesPage() {
           formData.parentId && formData.parentId !== "none"
             ? parseInt(formData.parentId)
             : undefined,
-        image_url: formData.imageUrl || undefined,
         sort_order: formData.sortOrder,
       });
 
@@ -189,7 +187,6 @@ export default function CategoriesPage() {
           formData.parentId && formData.parentId !== "none"
             ? parseInt(formData.parentId)
             : undefined,
-        image_url: formData.imageUrl || undefined,
         sort_order: formData.sortOrder,
       });
       const possibleError = (resp as unknown as { error?: string }).error;
@@ -262,6 +259,19 @@ export default function CategoriesPage() {
         }
       });
   }, [viewMode, getRootCategories, flatCategories, searchTerm, sortBy]);
+
+  const editInitialData = useMemo(
+    () =>
+      editingCategory
+        ? {
+            name: editingCategory.name || "",
+            description: editingCategory.description || "",
+            parentId: editingCategory.parentId || "none",
+            sortOrder: editingCategory.sortOrder || 0,
+          }
+        : undefined,
+    [editingCategory]
+  );
 
   if (isLoading) {
     return (
@@ -392,17 +402,7 @@ export default function CategoriesPage() {
                     title="Edit Category"
                     description="Update category information and save changes."
                     submitText="Update Category"
-                    initialData={
-                      editingCategory
-                        ? {
-                            name: editingCategory.name || "",
-                            description: editingCategory.description || "",
-                            parentId: editingCategory.parentId || "none",
-                            imageUrl: editingCategory.imageUrl || "",
-                            sortOrder: editingCategory.sortOrder || 0,
-                          }
-                        : undefined
-                    }
+                    initialData={editInitialData}
                     flatCategories={flatCategories}
                     editingCategory={editingCategory}
                   />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +26,6 @@ interface CategoryFormData {
   name: string;
   description: string;
   parentId: string;
-  imageUrl: string;
   sortOrder: number;
 }
 
@@ -43,6 +42,13 @@ interface CategoryFormProps {
   editingCategory?: Category | null;
 }
 
+const DEFAULT_FORM_DATA: CategoryFormData = {
+  name: "",
+  description: "",
+  parentId: "",
+  sortOrder: 0,
+};
+
 export function CategoryForm({
   isOpen,
   onClose,
@@ -51,17 +57,18 @@ export function CategoryForm({
   title,
   description,
   submitText,
-  initialData = {
-    name: "",
-    description: "",
-    parentId: "",
-    imageUrl: "",
-    sortOrder: 0,
-  },
+  initialData,
   flatCategories,
   editingCategory,
 }: CategoryFormProps) {
-  const [formData, setFormData] = useState<CategoryFormData>(initialData);
+  const [formData, setFormData] = useState<CategoryFormData>(DEFAULT_FORM_DATA);
+
+  // Keep form state in sync when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(initialData || DEFAULT_FORM_DATA);
+    }
+  }, [isOpen, initialData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +76,7 @@ export function CategoryForm({
   };
 
   const handleClose = () => {
-    setFormData(initialData);
+    setFormData(DEFAULT_FORM_DATA);
     onClose();
   };
 
@@ -127,17 +134,7 @@ export function CategoryForm({
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label htmlFor="imageUrl">Image URL</Label>
-            <Input
-              id="imageUrl"
-              value={formData.imageUrl}
-              onChange={(e) =>
-                setFormData({ ...formData, imageUrl: e.target.value })
-              }
-              placeholder="Enter image URL"
-            />
-          </div>
+          {/* Image field intentionally removed as categories don't currently require images */}
           <div>
             <Label htmlFor="sortOrder">Sort Order</Label>
             <Input

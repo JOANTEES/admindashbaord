@@ -41,7 +41,6 @@ import {
   IconEye,
   IconEdit,
   IconTrash,
-  IconShield,
   IconLoader,
 } from "@tabler/icons-react";
 import { ProtectedRoute } from "@/components/protected-route";
@@ -118,26 +117,28 @@ export default function UsersPage() {
       const data = response.data as { users?: BackendUser[] };
       if (data && data.users) {
         // Transform backend data to match frontend interface
-        const transformedUsers = data.users.map((user) => ({
-          id: user.id,
-          name: `${user.first_name} ${user.last_name}`,
-          email: user.email,
-          phone: user.phone || "",
-          role: (user.role || "customer") as
-            | "admin"
-            | "manager"
-            | "staff"
-            | "viewer"
-            | "customer",
-          status: (user.is_active === false ? "inactive" : "active") as
-            | "active"
-            | "inactive"
-            | "suspended",
-          department: user.department || "General",
-          lastLogin: user.last_login || "",
-          createdAt: user.created_at || new Date().toISOString(),
-          permissions: getRolePermissions(user.role || "customer"),
-        }));
+        const transformedUsers = data.users
+          .filter((u) => (u.role || "customer") === "customer")
+          .map((user) => ({
+            id: user.id,
+            name: `${user.first_name} ${user.last_name}`,
+            email: user.email,
+            phone: user.phone || "",
+            role: (user.role || "customer") as
+              | "admin"
+              | "manager"
+              | "staff"
+              | "viewer"
+              | "customer",
+            status: (user.is_active === false ? "inactive" : "active") as
+              | "active"
+              | "inactive"
+              | "suspended",
+            department: user.department || "General",
+            lastLogin: user.last_login || "",
+            createdAt: user.created_at || new Date().toISOString(),
+            permissions: getRolePermissions(user.role || "customer"),
+          }));
         setUsers(transformedUsers);
       }
     } catch (error) {
@@ -201,18 +202,46 @@ export default function UsersPage() {
     return filtered;
   }, [users, searchTerm, selectedRole, selectedStatus, sortBy, sortOrder]);
 
-  const roles = ["admin", "manager", "staff", "viewer", "customer"];
+  const [reportsTopCustomers, setReportsTopCustomers] = useState<
+    Array<{
+      id: string;
+      name: string;
+      email: string;
+      totalOrders: number;
+      totalSpent: number;
+      lastOrderDate?: string;
+    }>
+  >([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiClient.get(`/reports/customer-insights`);
+        const payload = (res.data as { data?: unknown }).data ?? res.data;
+        const data = payload as Record<string, unknown>;
+        const list = Array.isArray(data.topCustomers) ? data.topCustomers : [];
+        setReportsTopCustomers(
+          list.map((c: unknown) => {
+            const customer = c as Record<string, unknown>;
+            return {
+              id: String(customer.id ?? ""),
+              name: String(customer.name ?? ""),
+              email: String(customer.email ?? ""),
+              totalOrders: Number(customer.totalOrders ?? 0),
+              totalSpent: Number(customer.totalSpent ?? 0),
+              lastOrderDate: customer.lastOrderDate as string | undefined,
+            };
+          })
+        );
+      } catch {
+        // non-fatal: keep table hidden if endpoint not available
+        setReportsTopCustomers([]);
+      }
+    })();
+  }, []);
+
+  const roles = ["customer"]; // Only customers visible here
   const statuses = ["active", "inactive", "suspended"];
-  const departments = [
-    "Management",
-    "Operations",
-    "Customer Service",
-    "Marketing",
-    "Finance",
-    "IT",
-    "Sales",
-    "General",
-  ];
 
   const getRolePermissions = (role: string) => {
     switch (role) {
@@ -418,8 +447,6 @@ export default function UsersPage() {
 
   const totalUsers = users.length;
   const activeUsers = users.filter((u) => u.status === "active").length;
-  const adminUsers = users.filter((u) => u.role === "admin").length;
-  const staffUsers = users.filter((u) => u.role === "staff").length;
 
   if (isLoading) {
     return (
@@ -476,10 +503,10 @@ export default function UsersPage() {
                   <div className="flex justify-between items-center mb-6">
                     <div>
                       <h1 className="text-3xl font-bold text-foreground">
-                        Users Manager
+                        Customers Manager
                       </h1>
                       <p className="text-muted-foreground mt-1">
-                        Manage system users and permissions
+                        Manage customer accounts
                       </p>
                     </div>
                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -580,29 +607,7 @@ export default function UsersPage() {
                                 </SelectContent>
                               </Select>
                             </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="department">Department</Label>
-                              <Select
-                                value={formData.department}
-                                onValueChange={(value) =>
-                                  setFormData({
-                                    ...formData,
-                                    department: value,
-                                  })
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select department" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {departments.map((dept) => (
-                                    <SelectItem key={dept} value={dept}>
-                                      {dept}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
+                            {/* Department removed for customers-only view */}
                           </div>
 
                           {!editingUser && (
@@ -677,7 +682,7 @@ export default function UsersPage() {
                     <Card>
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">
-                          Total Users
+                          Total Customers
                         </CardTitle>
                         <IconUser className="h-4 w-4 text-muted-foreground" />
                       </CardHeader>
@@ -691,7 +696,7 @@ export default function UsersPage() {
                     <Card>
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">
-                          Active Users
+                          Active Customers
                         </CardTitle>
                         <IconUser className="h-4 w-4 text-green-500" />
                       </CardHeader>
@@ -704,38 +709,26 @@ export default function UsersPage() {
                         </p>
                       </CardContent>
                     </Card>
-                    <Card>
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
-                          Admins
-                        </CardTitle>
-                        <IconShield className="h-4 w-4 text-red-500" />
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-bold text-red-500">
-                          {adminUsers}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          administrators
-                        </p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
-                          Staff
-                        </CardTitle>
-                        <IconUser className="h-4 w-4 text-blue-500" />
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-bold text-blue-500">
-                          {staffUsers}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          staff members
-                        </p>
-                      </CardContent>
-                    </Card>
+                    {reportsTopCustomers.length > 0 && (
+                      <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                          <CardTitle className="text-sm font-medium">
+                            Top Customer
+                          </CardTitle>
+                          <IconUser className="h-4 w-4 text-yellow-500" />
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-base font-semibold mb-1 truncate">
+                            {reportsTopCustomers[0].name}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {reportsTopCustomers[0].totalOrders} orders · GH₵
+                            {reportsTopCustomers[0].totalSpent.toFixed(2)}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                    {/* Admin/Staff cards removed for customers-only view */}
                   </div>
 
                   {/* Search and Filters */}
@@ -820,7 +813,9 @@ export default function UsersPage() {
                   {/* Users Table */}
                   <Card>
                     <CardHeader>
-                      <CardTitle>All Users</CardTitle>
+                      <div className="flex items-center justify-between">
+                        <CardTitle>All Customers</CardTitle>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <Table>
@@ -828,7 +823,7 @@ export default function UsersPage() {
                           <TableRow>
                             <TableHead>User</TableHead>
                             <TableHead>Role</TableHead>
-                            <TableHead>Department</TableHead>
+                            {/* Department column removed */}
                             <TableHead>Status</TableHead>
                             <TableHead>Last Login</TableHead>
                             <TableHead>Actions</TableHead>
@@ -851,11 +846,7 @@ export default function UsersPage() {
                                 </div>
                               </TableCell>
                               <TableCell>{getRoleBadge(user.role)}</TableCell>
-                              <TableCell>
-                                <div className="text-sm text-muted-foreground">
-                                  {user.department}
-                                </div>
-                              </TableCell>
+                              {/* Department cell removed */}
                               <TableCell>
                                 {getStatusBadge(user.status)}
                               </TableCell>
@@ -920,6 +911,42 @@ export default function UsersPage() {
                     </CardContent>
                   </Card>
 
+                  {/* Top Customers by Purchases (from reports endpoint) */}
+                  {reportsTopCustomers.length > 0 && (
+                    <Card className="mt-6">
+                      <CardHeader>
+                        <CardTitle>Top Customers</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-sm text-muted-foreground mb-2">
+                          Most purchases in selected period
+                        </div>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Customer</TableHead>
+                              <TableHead>Email</TableHead>
+                              <TableHead>Orders</TableHead>
+                              <TableHead>Total Spent</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {reportsTopCustomers.map((c) => (
+                              <TableRow key={c.id}>
+                                <TableCell>{c.name}</TableCell>
+                                <TableCell>{c.email}</TableCell>
+                                <TableCell>{c.totalOrders}</TableCell>
+                                <TableCell>
+                                  GH₵{c.totalSpent.toFixed(2)}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                  )}
+
                   {filteredAndSortedUsers.length === 0 && (
                     <div className="text-center py-12">
                       <IconUser className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -979,12 +1006,7 @@ export default function UsersPage() {
                                 {viewData.role}
                               </div>
                             </div>
-                            <div>
-                              <Label>Department</Label>
-                              <div className="mt-1 text-sm">
-                                {viewData.department || "-"}
-                              </div>
-                            </div>
+                            {/* Department removed from view dialog */}
                           </div>
                           <div className="grid grid-cols-2 gap-4">
                             <div>
