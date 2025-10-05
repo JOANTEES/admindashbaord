@@ -41,6 +41,7 @@ import {
   IconEdit,
   IconLoader,
   IconEye,
+  IconSettings,
 } from "@tabler/icons-react";
 import {
   apiClient,
@@ -1338,11 +1339,14 @@ export default function ClothesPage() {
                   </Card>
 
                   {/* Clothes Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredAndSortedClothes.map((item) => (
-                      <Card key={item.id} className="overflow-hidden">
+                      <Card
+                        key={item.id}
+                        className="overflow-hidden h-full flex flex-col"
+                      >
                         <Link href={`/products/${item.id}`} className="block">
-                          <div className="aspect-square relative bg-muted">
+                          <div className="h-40 relative bg-muted">
                             {item.imageUrl ? (
                               <Image
                                 src={item.imageUrl}
@@ -1357,7 +1361,7 @@ export default function ClothesPage() {
                             )}
                           </div>
                         </Link>
-                        <CardContent className="p-4">
+                        <CardContent className="p-4 flex flex-col h-full">
                           <div className="flex justify-between items-start mb-2">
                             <Link
                               href={`/products/${item.id}`}
@@ -1379,25 +1383,29 @@ export default function ClothesPage() {
                                 )}
                             </div>
                           </div>
-                          <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
+                          <p className="text-xs text-muted-foreground mb-2 line-clamp-1">
                             {item.description}
                           </p>
-                          <div className="flex flex-wrap gap-1 mb-3">
-                            {/* Brand Badge */}
-                            {item.brand && (
-                              <Badge
-                                variant="outline"
-                                className="text-xs bg-blue-50 text-blue-700 border-blue-200"
-                              >
-                                {item.brand.name}
+                          <div className="space-y-1 mb-2">
+                            {/* Brand & Category Row */}
+                            <div className="flex gap-1 overflow-hidden flex-nowrap">
+                              {/* Brand Badge */}
+                              {item.brand && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs bg-blue-50 text-blue-700 border-blue-200"
+                                >
+                                  {item.brand.name}
+                                </Badge>
+                              )}
+                              {/* Category Badge - Show hierarchical name */}
+                              <Badge variant="outline" className="text-xs">
+                                {getCategoryPath(item.category)}
                               </Badge>
-                            )}
-                            {/* Category Badge - Show hierarchical name */}
-                            <Badge variant="outline" className="text-xs">
-                              {getCategoryPath(item.category)}
-                            </Badge>
-                            {/* Delivery/Pickup Badges */}
-                            <div className="flex flex-wrap gap-1">
+                            </div>
+
+                            {/* Delivery/Pickup Row */}
+                            <div className="flex gap-1 flex-nowrap">
                               {item.requiresSpecialDelivery && (
                                 <Badge
                                   variant="outline"
@@ -1424,30 +1432,29 @@ export default function ClothesPage() {
                               )}
                             </div>
                           </div>
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-2">
+                          <div className="flex justify-between items-center gap-2 mt-auto">
+                            <div className="flex items-center gap-2 whitespace-nowrap">
                               <Link href={`/products/${item.id}`}>
                                 <Button
                                   variant="outline"
-                                  size="sm"
-                                  className="text-xs"
+                                  size="icon"
+                                  className="h-8 w-8"
                                 >
-                                  <IconEye className="h-3 w-3 mr-1" />
-                                  View Details
+                                  <IconEye className="h-3 w-3" />
                                 </Button>
                               </Link>
                               <Button
                                 variant="outline"
-                                size="sm"
-                                className="text-xs"
+                                size="icon"
+                                className="h-8 w-8"
                                 onClick={() => {
                                   router.push(`/products/${item.id}/variants`);
                                 }}
                               >
-                                Manage Variants
+                                <IconSettings className="h-3 w-3" />
                               </Button>
                             </div>
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1 whitespace-nowrap">
                               <Button
                                 variant="ghost"
                                 size="sm"
