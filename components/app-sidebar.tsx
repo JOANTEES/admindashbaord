@@ -64,14 +64,9 @@ const data = {
       icon: IconCalendar,
     },
     {
-      title: "Users",
-      url: "/users",
-      icon: IconUsers,
-    },
-    {
       title: "Customers",
       url: "/customers",
-      icon: IconUsersGroup,
+      icon: IconUsers,
     },
     {
       title: "Payments",
