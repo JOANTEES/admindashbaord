@@ -35,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   IconSearch,
   IconPackage,
@@ -103,11 +104,11 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [deliveryFilter, setDeliveryFilter] = useState("all");
   const [sortBy, setSortBy] = useState<
     "date" | "customer" | "total" | "status"
   >("date");
+  const [activeTab, setActiveTab] = useState("pending");
   const [summary, setSummary] = useState<OrderSummary>({
     totalOrders: 0,
     pendingOrders: 0,
@@ -279,10 +280,10 @@ export default function OrdersPage() {
   const calculateSummary = (orders: Order[]) => {
     const totalOrders = orders.length;
     const pendingOrders = orders.filter((order) =>
-      ["pending", "confirmed", "processing"].includes(order.status)
+      ["pending", "processing"].includes(order.status)
     ).length;
-    const completedOrders = orders.filter(
-      (order) => order.status === "delivered"
+    const completedOrders = orders.filter((order) =>
+      ["completed", "delivered"].includes(order.status)
     ).length;
     const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
     const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
@@ -334,48 +335,216 @@ export default function OrdersPage() {
     }
   };
 
-  const filteredAndSortedOrders = orders
-    .filter((order) => {
-      const matchesSearch =
-        order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.customerEmail.toLowerCase().includes(searchTerm.toLowerCase());
+  // Get orders for current tab
+  const getOrdersForTab = (tab: string) => {
+    let statuses: string[] = [];
 
-      const matchesStatus =
-        statusFilter === "all" || order.status === statusFilter;
+    switch (tab) {
+      case "pending":
+        statuses = ["pending"];
+        break;
+      case "confirmed":
+        statuses = ["confirmed"];
+        break;
+      case "processing":
+        statuses = ["processing", "ready_for_pickup"];
+        break;
+      case "shipping":
+        statuses = ["shipped", "out_for_delivery"];
+        break;
+      case "completed":
+        statuses = ["completed", "delivered"];
+        break;
+      case "cancelled":
+        statuses = ["cancelled", "refunded"];
+        break;
+      default:
+        statuses = ["pending"];
+    }
 
-      const matchesDelivery =
-        deliveryFilter === "all" ||
-        (deliveryFilter === "pickup" && order.deliveryMethod === "pickup") ||
-        (deliveryFilter === "delivery" && order.deliveryMethod === "delivery");
+    return orders.filter((order) => statuses.includes(order.status));
+  };
 
-      return matchesSearch && matchesStatus && matchesDelivery;
-    })
-    .sort((a, b) => {
-      let aValue: string | number;
-      let bValue: string | number;
+  const getFilteredOrders = (tab: string) => {
+    return getOrdersForTab(tab)
+      .filter((order) => {
+        const matchesSearch =
+          order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          order.customerEmail.toLowerCase().includes(searchTerm.toLowerCase());
 
-      switch (sortBy) {
-        case "customer":
-          aValue = a.customerName;
-          bValue = b.customerName;
-          break;
-        case "total":
-          aValue = a.total;
-          bValue = b.total;
-          break;
-        case "status":
-          aValue = a.status;
-          bValue = b.status;
-          break;
-        case "date":
-        default:
-          aValue = new Date(a.createdAt).getTime();
-          bValue = new Date(b.createdAt).getTime();
-      }
+        const matchesDelivery =
+          deliveryFilter === "all" ||
+          (deliveryFilter === "pickup" && order.deliveryMethod === "pickup") ||
+          (deliveryFilter === "delivery" &&
+            order.deliveryMethod === "delivery");
 
-      return aValue < bValue ? 1 : -1;
-    });
+        return matchesSearch && matchesDelivery;
+      })
+      .sort((a, b) => {
+        let aValue: string | number;
+        let bValue: string | number;
+
+        switch (sortBy) {
+          case "customer":
+            aValue = a.customerName;
+            bValue = b.customerName;
+            break;
+          case "total":
+            aValue = a.total;
+            bValue = b.total;
+            break;
+          case "status":
+            aValue = a.status;
+            bValue = b.status;
+            break;
+          case "date":
+          default:
+            aValue = new Date(a.createdAt).getTime();
+            bValue = new Date(b.createdAt).getTime();
+        }
+
+        return aValue < bValue ? 1 : -1;
+      });
+  };
+
+  const renderOrderTable = (orders: Order[]) => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Order #</TableHead>
+          <TableHead>Customer</TableHead>
+          <TableHead>Items</TableHead>
+          <TableHead>Delivery Method</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Payment</TableHead>
+          <TableHead>Total</TableHead>
+          <TableHead>Date</TableHead>
+          <TableHead>Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {orders.map((order) => (
+          <TableRow key={order.id}>
+            <TableCell>
+              <div className="font-medium">{order.orderNumber}</div>
+            </TableCell>
+            <TableCell>
+              <div>
+                <div className="font-medium">{order.customerName}</div>
+                <div className="text-sm text-muted-foreground">
+                  {order.customerEmail}
+                </div>
+              </div>
+            </TableCell>
+            <TableCell>
+              <div className="text-sm">
+                {order.itemsCount ?? 0} item
+                {(order.itemsCount ?? 0) !== 1 ? "s" : ""}
+              </div>
+            </TableCell>
+            <TableCell>
+              <Badge
+                className={
+                  order.deliveryMethod === "pickup"
+                    ? "bg-blue-500"
+                    : "bg-green-500"
+                }
+              >
+                {order.deliveryMethod === "pickup" ? (
+                  <>
+                    <IconPackage className="h-3 w-3 mr-1" />
+                    Pickup
+                  </>
+                ) : (
+                  <>
+                    <IconTruck className="h-3 w-3 mr-1" />
+                    Delivery
+                  </>
+                )}
+              </Badge>
+              {order.deliveryMethod === "delivery" &&
+                order.deliveryZoneName && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {order.deliveryZoneName}
+                  </div>
+                )}
+            </TableCell>
+            <TableCell>
+              <Select
+                value={order.status}
+                onValueChange={(value: Order["status"]) =>
+                  handleOrderStatusUpdate(order.id, value)
+                }
+              >
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="confirmed">Confirmed</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="ready_for_pickup">
+                    Ready for Pickup
+                  </SelectItem>
+                  <SelectItem value="shipped">Shipped</SelectItem>
+                  <SelectItem value="out_for_delivery">
+                    Out for Delivery
+                  </SelectItem>
+                  <SelectItem value="delivered">Delivered</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="refunded">Refunded</SelectItem>
+                </SelectContent>
+              </Select>
+            </TableCell>
+            <TableCell>
+              <Badge
+                className={
+                  order.paymentStatus === "paid"
+                    ? "bg-green-500"
+                    : order.paymentStatus === "pending"
+                    ? "bg-yellow-500"
+                    : "bg-red-500"
+                }
+              >
+                {order.paymentStatus}
+              </Badge>
+            </TableCell>
+            <TableCell>
+              <div className="font-medium">₵{order.total.toFixed(2)}</div>
+            </TableCell>
+            <TableCell>
+              <div className="text-sm text-muted-foreground">
+                {new Date(order.createdAt).toLocaleDateString()}
+              </div>
+            </TableCell>
+            <TableCell>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openOrderDetail(order.id)}
+              >
+                <IconEye className="h-4 w-4" />
+              </Button>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+
+  const renderEmptyState = (message: string) => (
+    <div className="text-center py-12">
+      <IconPackage className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+      <h3 className="text-lg font-medium mb-2">{message}</h3>
+      <p className="text-muted-foreground">
+        {searchTerm || deliveryFilter !== "all"
+          ? "Try adjusting your search criteria"
+          : "No orders in this category"}
+      </p>
+    </div>
+  );
 
   if (isLoading) {
     return (
@@ -512,17 +681,16 @@ export default function OrdersPage() {
                     </Card>
                   </div>
 
-                  {/* Filters and Search */}
+                  {/* Search and Filters */}
                   <Card className="mb-6">
                     <CardHeader>
                       <CardTitle>Search & Filter</CardTitle>
                       <CardDescription>
-                        Find specific orders and filter by status or delivery
-                        method
+                        Find specific orders and filter by delivery method
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="relative">
                           <IconSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                           <Input
@@ -533,33 +701,11 @@ export default function OrdersPage() {
                           />
                         </div>
                         <Select
-                          value={statusFilter}
-                          onValueChange={setStatusFilter}
-                        >
-                          <SelectTrigger>
-                            <IconFilter className="h-4 w-4 mr-2" />
-                            <SelectValue placeholder="Order Status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Statuses</SelectItem>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="confirmed">Confirmed</SelectItem>
-                            <SelectItem value="processing">
-                              Processing
-                            </SelectItem>
-                            <SelectItem value="picked_up">Picked Up</SelectItem>
-                            <SelectItem value="in_transit">
-                              In Transit
-                            </SelectItem>
-                            <SelectItem value="delivered">Delivered</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Select
                           value={deliveryFilter}
                           onValueChange={setDeliveryFilter}
                         >
                           <SelectTrigger>
+                            <IconFilter className="h-4 w-4 mr-2" />
                             <SelectValue placeholder="Delivery Method" />
                           </SelectTrigger>
                           <SelectContent>
@@ -590,182 +736,131 @@ export default function OrdersPage() {
                     </CardContent>
                   </Card>
 
-                  {/* Orders Table */}
+                  {/* Orders Tabs */}
                   <Card>
-                    <CardHeader>
-                      <CardTitle>Orders</CardTitle>
-                      <CardDescription>
-                        All customer orders with delivery information
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Order #</TableHead>
-                            <TableHead>Customer</TableHead>
-                            <TableHead>Items</TableHead>
-                            <TableHead>Delivery Method</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Payment</TableHead>
-                            <TableHead>Total</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredAndSortedOrders.map((order) => (
-                            <TableRow key={order.id}>
-                              <TableCell>
-                                <div className="font-medium">
-                                  {order.orderNumber}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div>
-                                  <div className="font-medium">
-                                    {order.customerName}
-                                  </div>
-                                  <div className="text-sm text-muted-foreground">
-                                    {order.customerEmail}
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm">
-                                  {order.itemsCount ?? 0} item
-                                  {(order.itemsCount ?? 0) !== 1 ? "s" : ""}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  className={
-                                    order.deliveryMethod === "pickup"
-                                      ? "bg-blue-500"
-                                      : "bg-green-500"
-                                  }
-                                >
-                                  {order.deliveryMethod === "pickup" ? (
-                                    <>
-                                      <IconPackage className="h-3 w-3 mr-1" />
-                                      Pickup
-                                    </>
-                                  ) : (
-                                    <>
-                                      <IconTruck className="h-3 w-3 mr-1" />
-                                      Delivery
-                                    </>
-                                  )}
-                                </Badge>
-                                {order.deliveryMethod === "delivery" &&
-                                  order.deliveryZoneName && (
-                                    <div className="text-xs text-muted-foreground mt-1">
-                                      {order.deliveryZoneName}
-                                    </div>
-                                  )}
-                              </TableCell>
-                              <TableCell>
-                                <Select
-                                  value={order.status}
-                                  onValueChange={(value: Order["status"]) =>
-                                    handleOrderStatusUpdate(order.id, value)
-                                  }
-                                >
-                                  <SelectTrigger className="w-[140px]">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="pending">
-                                      Pending
-                                    </SelectItem>
-                                    <SelectItem value="confirmed">
-                                      Confirmed
-                                    </SelectItem>
-                                    <SelectItem value="processing">
-                                      Processing
-                                    </SelectItem>
-                                    <SelectItem value="ready_for_pickup">
-                                      Ready for Pickup
-                                    </SelectItem>
-                                    <SelectItem value="shipped">
-                                      Shipped
-                                    </SelectItem>
-                                    <SelectItem value="out_for_delivery">
-                                      Out for Delivery
-                                    </SelectItem>
-                                    <SelectItem value="delivered">
-                                      Delivered
-                                    </SelectItem>
-                                    <SelectItem value="completed">
-                                      Completed
-                                    </SelectItem>
-                                    <SelectItem value="cancelled">
-                                      Cancelled
-                                    </SelectItem>
-                                    <SelectItem value="refunded">
-                                      Refunded
-                                    </SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  className={
-                                    order.paymentStatus === "paid"
-                                      ? "bg-green-500"
-                                      : order.paymentStatus === "pending"
-                                      ? "bg-yellow-500"
-                                      : "bg-red-500"
-                                  }
-                                >
-                                  {order.paymentStatus}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <div className="font-medium">
-                                  ₵{order.total.toFixed(2)}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm text-muted-foreground">
-                                  {new Date(
-                                    order.createdAt
-                                  ).toLocaleDateString()}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => openOrderDetail(order.id)}
-                                >
-                                  <IconEye className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                    <CardContent className="p-0">
+                      <Tabs value={activeTab} onValueChange={setActiveTab}>
+                        <TabsList className="grid w-full grid-cols-6">
+                          <TabsTrigger value="pending">
+                            Pending ({getOrdersForTab("pending").length})
+                          </TabsTrigger>
+                          <TabsTrigger value="confirmed">
+                            Confirmed ({getOrdersForTab("confirmed").length})
+                          </TabsTrigger>
+                          <TabsTrigger value="processing">
+                            Processing ({getOrdersForTab("processing").length})
+                          </TabsTrigger>
+                          <TabsTrigger value="shipping">
+                            Shipping ({getOrdersForTab("shipping").length})
+                          </TabsTrigger>
+                          <TabsTrigger value="completed">
+                            Completed ({getOrdersForTab("completed").length})
+                          </TabsTrigger>
+                          <TabsTrigger value="cancelled">
+                            Cancelled ({getOrdersForTab("cancelled").length})
+                          </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="pending" className="p-6">
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-lg font-semibold">
+                                Pending Orders
+                              </h3>
+                              <span className="text-sm text-muted-foreground">
+                                {getFilteredOrders("pending").length} orders
+                              </span>
+                            </div>
+                            {getFilteredOrders("pending").length > 0
+                              ? renderOrderTable(getFilteredOrders("pending"))
+                              : renderEmptyState("No pending orders")}
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="confirmed" className="p-6">
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-lg font-semibold">
+                                Confirmed Orders
+                              </h3>
+                              <span className="text-sm text-muted-foreground">
+                                {getFilteredOrders("confirmed").length} orders
+                              </span>
+                            </div>
+                            {getFilteredOrders("confirmed").length > 0
+                              ? renderOrderTable(getFilteredOrders("confirmed"))
+                              : renderEmptyState("No confirmed orders")}
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="processing" className="p-6">
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-lg font-semibold">
+                                Processing Orders
+                              </h3>
+                              <span className="text-sm text-muted-foreground">
+                                {getFilteredOrders("processing").length} orders
+                              </span>
+                            </div>
+                            {getFilteredOrders("processing").length > 0
+                              ? renderOrderTable(
+                                  getFilteredOrders("processing")
+                                )
+                              : renderEmptyState("No processing orders")}
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="shipping" className="p-6">
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-lg font-semibold">
+                                Shipping Orders
+                              </h3>
+                              <span className="text-sm text-muted-foreground">
+                                {getFilteredOrders("shipping").length} orders
+                              </span>
+                            </div>
+                            {getFilteredOrders("shipping").length > 0
+                              ? renderOrderTable(getFilteredOrders("shipping"))
+                              : renderEmptyState("No shipping orders")}
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="completed" className="p-6">
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-lg font-semibold">
+                                Completed Orders
+                              </h3>
+                              <span className="text-sm text-muted-foreground">
+                                {getFilteredOrders("completed").length} orders
+                              </span>
+                            </div>
+                            {getFilteredOrders("completed").length > 0
+                              ? renderOrderTable(getFilteredOrders("completed"))
+                              : renderEmptyState("No completed orders")}
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="cancelled" className="p-6">
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-lg font-semibold">
+                                Cancelled Orders
+                              </h3>
+                              <span className="text-sm text-muted-foreground">
+                                {getFilteredOrders("cancelled").length} orders
+                              </span>
+                            </div>
+                            {getFilteredOrders("cancelled").length > 0
+                              ? renderOrderTable(getFilteredOrders("cancelled"))
+                              : renderEmptyState("No cancelled orders")}
+                          </div>
+                        </TabsContent>
+                      </Tabs>
                     </CardContent>
                   </Card>
-
-                  {filteredAndSortedOrders.length === 0 && (
-                    <Card>
-                      <CardContent className="text-center py-12">
-                        <IconPackage className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                        <h3 className="text-lg font-medium mb-2">
-                          No orders found
-                        </h3>
-                        <p className="text-muted-foreground">
-                          {searchTerm ||
-                          statusFilter !== "all" ||
-                          deliveryFilter !== "all"
-                            ? "Try adjusting your search criteria"
-                            : "No orders have been placed yet"}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  )}
                 </div>
               </div>
             </div>
